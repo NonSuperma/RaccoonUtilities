@@ -1,7 +1,0 @@
-Write options on new lines:
---restrict-filenames
---no-mtime
--o "%(title)s.%(ext)s"
--P "C:/Users/tobia/Downloads"
---cookies-from-browser firefox
---merge-output-format mp4
