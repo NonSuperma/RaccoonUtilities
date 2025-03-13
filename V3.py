@@ -17,6 +17,7 @@ clipBoardData = win32clipboard.GetClipboardData()
 win32clipboard.CloseClipboard()
 
 if validators.url(clipBoardData) is True:
+    print("Url found in clipboard\nLoaded!")
     primaryUrl = clipBoardData
 else:
     primaryUrl = input("Url: ")
@@ -26,10 +27,9 @@ else:
 
 if primaryUrl.find("list") != -1:
     isAPlaylist = True
-    idCheck = sp.run(f'yt-dlp --flat-playlist --print id "{primaryUrl}" -i', shell=True, capture_output=True).stdout
-    idList = str(idCheck)[1:-3].replace("'", "").split(sep="\\n")
+    idCheck = sp.run(f'yt-dlp --flat-playlist --print id "{primaryUrl}" -i', shell=True, capture_output=True).stdout.decode().split()
     urlList = []
-    for id in idList:
+    for id in idCheck:
         urlList.append(f"https://www.youtube.com/watch?v={id}")
 else:
     isAPlaylist = False
