@@ -32,11 +32,15 @@ def execute(cmd):
     return executeOutputData
 
 
-win32clipboard.OpenClipboard()
-clipBoardData = win32clipboard.GetClipboardData()
-win32clipboard.CloseClipboard()
+# Get clipboard data if available
+try:
+    win32clipboard.OpenClipboard()
+    clipBoardData = win32clipboard.GetClipboardData()
+    win32clipboard.CloseClipboard()
+except (Exception,):
+    clipBoardData = 'Error'
 
-#Get the primary url/urls
+# Get the primary url/urls
 if validators.url(clipBoardData) is True:
     print("Url found in user's clipboard, using that one\n")
     primaryUrl = clipBoardData
@@ -46,7 +50,7 @@ else:
         print("Input a proper url, dumbass")
         askExit()
 
-#check if url is a yt playlist, if yes, create urlList with a list of urls that will be used
+# Check if url is a yt playlist, if yes, create urlList with a list of urls that will be used
 if primaryUrl.find("list") != -1 and primaryUrl.lower().find("youtu") != -1:
 
     isAPlaylist = True
@@ -58,7 +62,7 @@ if primaryUrl.find("list") != -1 and primaryUrl.lower().find("youtu") != -1:
 else:
     isAPlaylist = False
 
-#read config, create downloadPath and configOptionList
+# Read config, create downloadPath and configOptionList
 config = configparser.ConfigParser(allow_no_value=True, delimiters='=')
 config.optionxform = str
 config.read("config.ini")
@@ -75,6 +79,5 @@ for key in config['DownloadPath']:
     configOptionList += f'{sp.run(f'echo {key}', shell=True, capture_output=True, universal_newlines=True).stdout.replace('%', '')} '.replace('\n', '')
 
 sp.run(f'yt-dlp {configOptionList}"{primaryUrl}"', shell=True)
-#print(f'yt-dlp {configOptionList}"{primaryUrl}"')
-
+# print(f'yt-dlp {configOptionList}"{primaryUrl}"')
 
