@@ -58,21 +58,57 @@ optionsDescription = (
     "\n-p  |  Custom path\n"
     "\n---------------------------------------------------------------------------------------\n"
 )
-#print(optionsDescription)
+print(optionsDescription)
 
-#Get tempOptions form OptionsDescription, replacing non-input related shortcut options with their full counterparts
-#tempOptions = input(f'\n: ').replace('-d', '--download-sections').replace('-wt', "--write-thumbnail")
-#if tempOptions[-1] != ' ':
-#    tempOptions += ' '
-#print(tempOptions + '\n')
+# Get tempOptions form OptionsDescription, replacing non-input related shortcut options with their full counterparts
+tempOptions = input(f'\n: ').replace('-d', '--download-sections').replace('-wt', "--write-thumbnail")
+if tempOptions[-1] != ' ':
+    tempOptions += ' '
+print(tempOptions + '\n')
 
-#Check for custom options, get input and apply to tempOptions
-#if tempOptions.find("-res") != -1:
-#    sp.run(f'yt-dlp -F {url}')
-#    tempOptions = tempOptions.replace('-res', '-f ' + input("WARNING!\nInclude both audio and video id! Example: 234+ba\nid: "))
-#if tempOptions.find("-p") != -1:
-#    path = tkinter.filedialog.askdirectory().replace('/', '\\')
-#    tempOptions = tempOptions.replace('-p', f'-P "{path}"')
-#print(path)
+# Check for custom options, get input and apply to tempOptions
+if tempOptions.find("-res") != -1:
+    sp.run(f'yt-dlp -F {primaryUrl}')
+    tempOptions = tempOptions.replace('-res', '-f ' + input("WARNING!\nInclude both audio and video id! Example: 234+ba\nid: "))
+if tempOptions.find("-p") != -1:
+    path = tkinter.filedialog.askdirectory().replace('/', '\\')
+    tempOptions = tempOptions.replace('-p', f'-P "{path}"')
+print(path)
 
-#print(tempOptions)
+print(tempOptions)
+
+
+
+primaryUrl = "https://youtu.be/YKsQJVzr3a8?si=U4W8tXNK7djtjd2b"
+
+optionsDescription = (
+    '\nEnter options with a whitespace as a separator.\n'
+    "---------------------------------------------------------------------------------------"
+    "\n--download-sections  |  -d  |  Downloads only selected time-frame  |  *{Start}-{End}"
+    "\n--write-thumbnail  |  -wt  |  Saves the thumbnail in the same path as the file"
+    "\n-res  |  Check and use custom resolutions"
+    "\n-p  |  Custom path | Opens a directory selection window if alone, or uses the path given after it. Example: -p C:\\Users\\user\\Documents\n"
+    "---------------------------------------------------------------------------------------"
+)
+print(optionsDescription)
+
+# Get tempOptions form OptionsDescription, replacing non-input related shortcut options with their full counterparts
+tempOptions = input(f': ').replace('-d', '--download-sections').replace('-wt', "--write-thumbnail")
+if tempOptions[-1] != ' ':
+    tempOptions += ' '
+
+# Check for custom options, get input if needed and add to tempOptions
+if tempOptions.find("-res") != -1:
+    sp.run(f'yt-dlp -F {primaryUrl}')
+    tempOptions = tempOptions.replace('-res', '-f ' + input("WARNING!\nInput both audio and video ids if you want both! Include one id for just one stream.\nExample: 234+ba\nid: "))
+if tempOptions.find("-p") != -1:
+    try:
+        path_start = tempOptions.find("-p") + 3
+        path_end = tempOptions.find(" -", path_start)
+        if path_end == -1:
+            path_end = len(tempOptions)
+        path = tempOptions[path_start:path_end].strip()
+        tempOptions = tempOptions.replace(f'-p {path}', f'-P "{path}"')
+    except IndexError:
+        path = tkinter.filedialog.askdirectory().replace('/', '\\')
+        tempOptions = tempOptions.replace('-p', f'-P "{path}"')
