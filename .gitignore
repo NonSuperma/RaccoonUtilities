@@ -1,6 +1,5 @@
 /dist/
 /build/
-/-p/
 /.venv/
 /.idea/
 /phantomjs.exe
@@ -23,5 +22,5 @@
 /vidMaker.spec
 /yt-dlp.ico
 /yt-dlpFAST.ico
-/Playground.py
 /V3Test.py
+/Playground.py
