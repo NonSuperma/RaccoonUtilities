@@ -2,6 +2,16 @@ import configparser
 import subprocess as sp
 import tkinter.filedialog
 
+# dimentions = sp.run(f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "{imageInputPath}"', shell=True, capture_output=True).stdout.decode().replace("\r\n", "")
+
+
+
+
+
+
+
+
+
 
 def winPath():
     path = tkinter.filedialog.askdirectory().replace('/', '\\')

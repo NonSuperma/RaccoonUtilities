@@ -25,8 +25,5 @@ else:
 	end = tempVar
 
 
-# dimentions = sp.run(f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "{imageInputPath}"', shell=True, capture_output=True).stdout.decode().replace("\r\n", "")
-
-
 print(f'ffmpeg -ss {start} -to {end} -i {file} -c copy "{path}\\{fileName}__CUT.mp4"')
 shell(f'ffmpeg -ss {start} -to {end} -i {file} -c copy "{path}\\{fileName}__CUT.mp4"')
