@@ -12,9 +12,6 @@ if len(soundInputPaths) == 1:
 	name = soundInputPaths[:soundInputPaths.rfind(".")]
 	extension = soundInputPaths[soundInputPaths.rfind("."):]
 
-	print(name)
-	print(extension)
-
 	sp.run(f'ffmpeg -r 1 -loop 1 -i "{imageInputPath}" -i "{soundInputPaths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{name}.mp4"', shell=True)
 	sp.run(f'del "{imageInputPath.replace('/', '\\')}"', shell=True)
 	sp.run(f'del "{soundInputPaths.replace('/', '\\')}"', shell=True)
