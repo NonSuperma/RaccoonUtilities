@@ -25,11 +25,10 @@ def execute(cmd):
                 "has already been downloaded") != -1:
             fileName = outputLine[outputLine.rfind('\\')+1:].replace('\n', '')
             if fileName.rfind('.f') != -1:
-                print(fileName[fileName.rfind('.f')+5])
                 extension = fileName[:fileName.rfind('.')]
                 fileName = fileName.replace(extension, '')[:fileName.rfind('.')]
                 fileName += extension
-            print(fileName)
+            print(f' :{fileName}')
             print(outputLine.replace("\n", ""))
         if outputLine.find(" of ") != -1 and lastLine.find(" of ") != -1:
             print('\r' + outputLine.replace('\n', ''), end='')
