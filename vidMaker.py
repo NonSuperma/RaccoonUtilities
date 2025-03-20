@@ -2,7 +2,7 @@ import subprocess as sp
 import tkinter.filedialog
 
 
-class RacoonUtilitiesInputError(Exception):
+class RacoonUtilitiesMissingInputError(Exception):
 	def __init__(self, message):
 		self.message = message
 		super().__init__(self.message)
@@ -15,7 +15,7 @@ def askExit():
 
 def makeVideo(image_input_path, sound_input_paths):
 	if image_input_path == "" or sound_input_paths == "":
-		raise RacoonUtilitiesInputError("No input")
+		raise RacoonUtilitiesMissingInputError("No input")
 	if len(sound_input_paths) == 1:
 		sound_input_paths = sound_input_paths[0]
 		name = sound_input_paths[:sound_input_paths.rfind(".")]
@@ -42,6 +42,6 @@ if __name__ == "__main__":
 
 	try:
 		makeVideo(imageInputPath, soundInputPaths)
-	except RacoonUtilitiesInputError:
+	except RacoonUtilitiesMissingInputError:
 		print("No input")
 		askExit()
