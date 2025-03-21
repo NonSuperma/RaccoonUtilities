@@ -21,19 +21,15 @@ def makeVideo(image_input_path, sound_input_paths):
 		name = sound_input_paths[:sound_input_paths.rfind(".")]
 
 		sp.run(f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{name}.mp4"', shell=True)
-		sp.run(f'del "{image_input_path.replace('/', '\\')}"', shell=True)
-		sp.run(f'del "{sound_input_paths.replace('/', '\\')}"', shell=True)
 
 	else:
 		names = []
-		for number in range(0, len(sound_input_paths)):
-			names.append(sound_input_paths[number][:sound_input_paths[number].rfind(".")])
+		for index in range(0, len(sound_input_paths)):
+			names.append(sound_input_paths[index][:sound_input_paths[index].rfind(".")])
 		print(names)
 
 		for index in range(len(names)):
 			sp.run(f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[index]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{names[index]}.mp4"', shell=True)
-			sp.run(f'del "{sound_input_paths[index].replace('/', '\\')}"', shell=True)
-		sp.run(f'del "{image_input_path.replace('/', '\\')}"', shell=True)
 
 
 if __name__ == "__main__":
@@ -45,3 +41,4 @@ if __name__ == "__main__":
 	except RacoonUtilitiesMissingInputError:
 		print("No input")
 		askExit()
+exit()

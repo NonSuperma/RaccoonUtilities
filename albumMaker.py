@@ -14,6 +14,11 @@ class RacoonUtilitiesMissingInputError(Exception):
 		super().__init__(self.message)
 
 
+def askExit():
+	input("Press enter to exit...")
+	exit()
+
+
 def makeAlbum(image_input_path, sound_input_paths, final_filename):
 	if image_input_path == "" or sound_input_paths == "" or final_filename == "":
 		raise RacoonUtilitiesMissingInputError("No input")
@@ -52,5 +57,12 @@ if __name__ == "__main__":
 	imageInputPath = tkinter.filedialog.askopenfilename()
 	soundInputPaths = tkinter.filedialog.askopenfilenames()
 	finalFilename = input("Final file name: ")
-	makeAlbum(imageInputPath, soundInputPaths, finalFilename)
+	try:
+		makeAlbum(imageInputPath, soundInputPaths, finalFilename)
+	except RacoonUtilitiesMissingInputError:
+		print("RacoonUtilitiesMissingInputError: No input")
+		askExit()
+	except RacoonUtilitiesInputLengthError:
+		print("RacoonUtilitiesInputLengthError: Too many audio files selected")
+		askExit()
 	exit()
