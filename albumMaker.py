@@ -1,6 +1,9 @@
 import subprocess as sp
-import tkinter.filedialog
+from tkinter import filedialog, Tk
 
+root = Tk()
+root.lift()
+root.withdraw()
 
 class RacoonUtilitiesInputLengthError(Exception):
 	def __init__(self, message):
@@ -17,6 +20,23 @@ class RacoonUtilitiesMissingInputError(Exception):
 def askExit():
 	input("Press enter to exit...")
 	exit()
+
+
+def winDirPath(message):
+	tempPath = filedialog.askdirectory(title=message, parent=root).replace('/', '\\').strip()
+	return tempPath
+
+
+def winFilePath(message):
+	tempPath = filedialog.askopenfilename(title=message, parent=root).replace('/', '\\').strip()
+	return tempPath
+
+
+def winFilesPath(message):
+	tempPaths = list(filedialog.askopenfilenames(title=message, parent=root))
+	for i in range(len(tempPaths)):
+		tempPaths[i] = tempPaths[i].replace('/', '\\')
+	return tempPaths
 
 
 def makeAlbum(image_input_path, sound_input_paths, final_filename):
