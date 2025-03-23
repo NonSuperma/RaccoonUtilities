@@ -13,6 +13,12 @@ class RacoonUtilitiesMissingInputError(Exception):
 		super().__init__(self.message)
 
 
+class RacoonUtilitiesDirectoryError(Exception):
+	def __init__(self, message):
+		self.message = message
+		super().__init__(self.message)
+
+
 def makeVideo(image_input_path, sound_input_paths, output_path):
 	if image_input_path == "" or sound_input_paths == "":
 		raise RacoonUtilitiesMissingInputError("No input")
@@ -66,12 +72,6 @@ def makeAlbum(image_input_path, sound_input_paths, final_filename, output_path):
 	sp.run(
 		f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"',
 		shell=True)
-
-
-class RacoonUtilitiesDirectoryError(Exception):
-	def __init__(self, message):
-		self.message = message
-		super().__init__(self.message)
 
 
 def askExit():
@@ -151,9 +151,6 @@ if __name__ == "__main__":
 
 	workingFolderPath = audioPaths[0][:audioPaths[0].rfind("\\")]
 	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]
-
-	print(workingFolderPath)
-	print(workingFolderName)
 
 	userChoice = input(f'The selected songs are in a folder called "{workingFolderName}".\nPress enter to use that folder as the album name, or input the album name manually\n: ')
 	if userChoice == '':
