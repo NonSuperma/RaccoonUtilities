@@ -2,11 +2,6 @@ import subprocess as sp
 from tkinter import filedialog, Tk
 
 
-root = Tk()
-root.lift()
-root.withdraw()
-
-
 class RacoonUtilitiesMissingInputError(Exception):
 	def __init__(self, message):
 		self.message = message
@@ -114,6 +109,7 @@ def winFilesPath(message):
 		tempPaths[i] = tempPaths[i].replace('/', '\\')
 	return tempPaths
 
+
 def createFullAlbum(image_path, audio_paths, album_name):
 	if image_path == "" or audio_paths == "" or album_name == "":
 		raise RacoonUtilitiesMissingInputError("No input")
@@ -142,7 +138,6 @@ def createFullAlbum(image_path, audio_paths, album_name):
 	if image_path[image_path.rfind("\\"):].find(album_name) == -1:
 		imageName = image_path[image_path.rfind("\\") + 1:]
 		sp.run(f'ren "{image_path}" "{album_name}-{imageName}"', shell=True)
-
 
 
 if __name__ == "__main__":
