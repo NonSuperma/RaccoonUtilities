@@ -72,6 +72,10 @@ if __name__ == "__main__":
 	outputPath = ''
 	try:
 		makeVideo(imageInputPath, soundInputPaths, outputPath)
+		for path in soundInputPaths:
+			sp.run(f'del "{path}"', shell=True)
+		sp.run(f'del "{imageInputPath}"', shell=True)
+
 	except RacoonUtilitiesMissingInputError:
 		print("No input!")
 		askExit()
