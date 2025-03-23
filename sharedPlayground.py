@@ -42,45 +42,16 @@ class RacoonUtilitiesDirectoryError(Exception):
 		super().__init__(self.message)
 
 
-music_directory_path = "C:\\Users\\tobia\\Music"
-artist_name = "Mark"
+imagePath = winFilePath("Album cover")
+audioPaths = winFilesPath("Audio files")
 
-
-def makeVideo(image_input_path, sound_input_paths, output_path):
-	if image_input_path == "" or sound_input_paths == "":
-		raise RacoonUtilitiesMissingInputError("No input")
-
-	if output_path == '':
-		output_path = sound_input_paths[0][:sound_input_paths[0].rfind("\\")]
-
-	if len(sound_input_paths) == 1:
-		sound_input_paths = sound_input_paths[0]
-		name = sound_input_paths[sound_input_paths.rfind('\\') + 1:sound_input_paths.rfind('.')]
-
-		sp.run(
-			f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
-			shell=True)
-
-	else:
-		names = []
-		for index in range(0, len(sound_input_paths)):
-			names.append(sound_input_paths[index][:sound_input_paths[index].rfind(".")])
-		print(names)
-
-		for index in range(len(names)):
-			sp.run(
-				f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[index]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{names[index]}.mp4"',
-				shell=True)
-
-
-if __name__ == "__main__":
-	imageInputPath = winFilePath()
-	soundInputPaths = winFilesPath()
-	outputPath = ''
-	try:
-		makeVideo(imageInputPath, soundInputPaths, outputPath)
-	except RacoonUtilitiesMissingInputError:
-		print("No input!")
-		askExit()
-
-exit()
+userChoice = input('Add author name to files?\nInput "n" if no, and an author name if yes.\n: ')
+if userChoice != 'n':
+	for index in range(len(audioPaths)):
+		print(audioPaths[index])
+		audioName = audioPaths[index][audioPaths[index].rfind("\\") + 1:]
+		audioPath = audioPaths[index][:audioPaths[index].rfind("\\")]
+		#sp.run(f'ren {audioPaths[index]} {userChoice}-{audioName}', shell=True)
+		print(f'ren {audioPaths[index]} {userChoice}-{audioName}')
+		audioPaths[index] = audioPaths[index][:audioPaths[index].rfind("\\") + 1] + userChoice + '-' + audioPaths[index][audioPaths[index].rfind("\\") + 1:]
+		print(audioPaths[index])

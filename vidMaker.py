@@ -1,10 +1,6 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
 
-root = Tk()
-#root.attributes("-topmost", True) # this also works
-root.lift()
-root.withdraw()
 
 class RacoonUtilitiesMissingInputError(Exception):
 	def __init__(self, message):
@@ -18,16 +14,25 @@ def askExit():
 
 
 def winDirPath(message):
+	root = Tk()
+	root.lift()
+	root.withdraw()
 	tempPath = filedialog.askdirectory(title=message, parent=root).replace('/', '\\').strip()
 	return tempPath
 
 
 def winFilePath(message):
+	root = Tk()
+	root.lift()
+	root.withdraw()
 	tempPath = filedialog.askopenfilename(title=message, parent=root).replace('/', '\\').strip()
 	return tempPath
 
 
 def winFilesPath(message):
+	root = Tk()
+	root.lift()
+	root.withdraw()
 	tempPaths = list(filedialog.askopenfilenames(title=message, parent=root))
 	for i in range(len(tempPaths)):
 		tempPaths[i] = tempPaths[i].replace('/', '\\')
@@ -57,13 +62,13 @@ def makeVideo(image_input_path, sound_input_paths, output_path):
 
 		for index in range(len(names)):
 			sp.run(
-				f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[index]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{names[index]}.mp4"',
+				f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[index]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[index]}.mp4"',
 				shell=True)
 
 
 if __name__ == "__main__":
-	imageInputPath = winFilePath("imageInputPath")
-	soundInputPaths = winFilesPath("soundInputPaths")
+	imageInputPath = winFilePath("Album cover")
+	soundInputPaths = winFilesPath("Audio files")
 	outputPath = ''
 	try:
 		makeVideo(imageInputPath, soundInputPaths, outputPath)
