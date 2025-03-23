@@ -52,16 +52,11 @@ def winFilesPath(message):
 
 
 
-imagePath = winFilePath("Album cover")
-audioPaths = winFilesPath("Audio files")
+#imagePath = winFilePath("Album cover")
+#audioPaths = winFilesPath("Audio files")
+vidPath = 'C:\\Users\\tobia\\Downloads\\tropical_tech_house_mix_vol._3.mp4'
 
-userChoice = input('Add author name to files?\nInput "n" if no, and an author name if yes.\n: ')
-if userChoice != 'n':
-	for index in range(len(audioPaths)):
-		print(audioPaths[index])
-		audioName = audioPaths[index][audioPaths[index].rfind("\\") + 1:]
-		audioPath = audioPaths[index][:audioPaths[index].rfind("\\")]
-		#sp.run(f'ren {audioPaths[index]} {userChoice}-{audioName}', shell=True)
-		print(f'ren {audioPaths[index]} {userChoice}-{audioName}')
-		audioPaths[index] = audioPaths[index][:audioPaths[index].rfind("\\") + 1] + userChoice + '-' + audioPaths[index][audioPaths[index].rfind("\\") + 1:]
-		print(audioPaths[index])
+
+#sp.run(f'ffplay -i {vidPath} -vf "crop=1132:1080:395:0"', shell=True)
+#print(vidPath[:vidPath.rfind('.')] + '__CUT__' + vidPath[vidPath.rfind('.'):])
+sp.run(f'ffmpeg -i {vidPath} -acodec copy -vf "crop=1132:1080:395:0" {vidPath[:vidPath.rfind('.')] + '__CROPPED__' + vidPath[vidPath.rfind('.'):]}', shell=True)
