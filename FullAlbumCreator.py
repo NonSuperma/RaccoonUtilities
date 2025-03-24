@@ -51,6 +51,7 @@ def makeAlbum(image_input_path, sound_input_paths, final_filename, output_path):
 	inputPath = ''
 	for i in sound_input_paths:
 		inputPath += f'-i "{i.replace('/', '\\')}" '
+	print(inputPath)
 
 	preConcat = ''
 	for i in range(0, len(sound_input_paths)):
@@ -58,14 +59,10 @@ def makeAlbum(image_input_path, sound_input_paths, final_filename, output_path):
 
 	extension = sound_input_paths[0][sound_input_paths[0].rfind('.'):]
 
-	sp.run(
-		f'ffmpeg {inputPath}-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" {output_path}\\output{extension}',
-		shell=True)
+	sp.run(f'ffmpeg {inputPath}-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" "{output_path}\\output{extension}"', shell=True)
 	sp.run(f'ren "{output_path}\\output{extension}" "{final_filename + extension}"', shell=True)
 
-	sp.run(
-		f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"',
-		shell=True)
+	sp.run(f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"', shell=True)
 
 
 def askExit():
@@ -75,12 +72,12 @@ def askExit():
 
 def mkFolder(path, folder_name):
 	try:
-		if sp.run(f'mkdir {path}\\{folder_name}', shell=True, capture_output=True).returncode != 0:
+		if sp.run(f'mkdir "{path}\\{folder_name}"', shell=True, capture_output=True).returncode != 0:
 			raise RacoonUtilitiesDirectoryError(f'Folder {folder_name} already exists')
 	except RacoonUtilitiesDirectoryError:
 		print(f'Folder {folder_name} already exists')
 	else:
-		sp.run(f'mkdir {path}\\{folder_name}', shell=True, capture_output=True)
+		sp.run(f'mkdir "{path}\\{folder_name}"', shell=True, capture_output=True)
 
 
 def winDirPath(message):
@@ -115,13 +112,6 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 	directoryPath = audio_paths[0][:audio_paths[0].rfind("\\")]
 
-	for INDEX in range(len(audio_paths)):
-		oldAudioPath = audio_paths[INDEX]
-		audio_paths[INDEX] = audio_paths[INDEX].replace(' ', '_')
-		audio_paths[INDEX] = audio_paths[INDEX].replace('_-_', '-')
-		newAudioName = audio_paths[INDEX][audio_paths[INDEX].rfind("\\")+1:]
-		sp.run(f'ren "{oldAudioPath}" "{newAudioName}"', shell=True)
-
 	extensionList = []
 	for audioFilePath in audio_paths:
 		extensionList.append(audioFilePath[audioFilePath.rfind(".") + 1:])
@@ -152,7 +142,7 @@ if __name__ == "__main__":
 	workingFolderPath = audioPaths[0][:audioPaths[0].rfind("\\")]
 	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]
 
-	userChoice = input(f'The selected songs are in a folder called "{workingFolderName}".\nPress enter to use that folder as the album name, or input the album name manually\n: ')
+	userChoice = input(f'The selected songs are in a folder called "{workingFolderName}"\nPress enter to use that folder as the album name, or input the album name manually\n: ')
 	if userChoice == '':
 		albumName = workingFolderName
 	else:
