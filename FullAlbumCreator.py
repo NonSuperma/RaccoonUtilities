@@ -28,16 +28,15 @@ def makeVideo(image_input_path, sound_input_paths, output_path):
 		sp.run(
 			f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
 			shell=True)
-
 	else:
 		names = []
-		for index in range(0, len(sound_input_paths)):
-			names.append(sound_input_paths[index][sound_input_paths[index].rfind("\\"):sound_input_paths[index].rfind(".")])
+		for INDEX in range(0, len(sound_input_paths)):
+			names.append(sound_input_paths[INDEX][sound_input_paths[INDEX].rfind("\\"):sound_input_paths[INDEX].rfind(".")])
 		print(names)
 
-		for index in range(len(names)):
+		for INDEX in range(len(names)):
 			sp.run(
-				f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[index]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[index]}.mp4"',
+				f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[INDEX]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[INDEX]}.mp4"',
 				shell=True)
 
 
@@ -135,9 +134,8 @@ def createFullAlbum(image_path, audio_paths, album_name):
 	for songPath in audio_paths:
 		sp.run(f'move {songPath} {directoryPath}\\{audioFolder}', shell=True)
 
-	if image_path[image_path.rfind("\\"):].find(album_name) == -1:
-		imageName = image_path[image_path.rfind("\\") + 1:]
-		sp.run(f'ren "{image_path}" "{album_name}-{imageName}"', shell=True)
+	if image_path[image_path.rfind("\\")+1:] != f'{album_name}-cover{image_path[image_path.rfind("."):]}':
+		sp.run(f'ren "{image_path}" "{album_name}-cover{image_path[image_path.rfind("."):]}"', shell=True)
 
 
 if __name__ == "__main__":
