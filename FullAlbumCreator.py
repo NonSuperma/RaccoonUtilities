@@ -115,6 +115,13 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 	directoryPath = audio_paths[0][:audio_paths[0].rfind("\\")]
 
+	for INDEX in range(len(audio_paths)):
+		oldAudioPath = audio_paths[INDEX]
+		audio_paths[INDEX] = audio_paths[INDEX].replace(' ', '_')
+		audio_paths[INDEX] = audio_paths[INDEX].replace('_-_', '-')
+		newAudioName = audio_paths[INDEX][audio_paths[INDEX].rfind("\\")+1:]
+		sp.run(f'ren "{oldAudioPath}" "{newAudioName}"', shell=True)
+
 	extensionList = []
 	for audioFilePath in audio_paths:
 		extensionList.append(audioFilePath[audioFilePath.rfind(".") + 1:])
@@ -132,7 +139,7 @@ def createFullAlbum(image_path, audio_paths, album_name):
 	makeAlbum(image_path, audio_paths, album_name, directoryPath)
 
 	for songPath in audio_paths:
-		sp.run(f'move {songPath} {directoryPath}\\{audioFolder}', shell=True)
+		sp.run(f'move "{songPath}" "{directoryPath}\\{audioFolder}"', shell=True)
 
 	if image_path[image_path.rfind("\\")+1:] != f'{album_name}-cover{image_path[image_path.rfind("."):]}':
 		sp.run(f'ren "{image_path}" "{album_name}-cover{image_path[image_path.rfind("."):]}"', shell=True)
