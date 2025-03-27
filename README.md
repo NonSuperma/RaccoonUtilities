@@ -37,8 +37,9 @@ Asks you to pick files, then asks you to input a string it will append at the be
 Asks you to pick files, then to input an extension. It will then convert each of the chosen files to the chosen extension.
 
 -FullAlbumCreator.py\
-Asks you for album image, any amount of audio files, and a final file name. It then:\
+Asks you for an album image, any amount of audio files, and a final file name. It then:\
 Creates videos with vidMaker.py and puts them in one folder\
 Created concaded audio and video files with albumMaker.py\
-Moves the oryginally selected audio file to one of the new folder.
+Moves the oryginally selected audio file to one of the new folders.\
+Makes a couple of small QoL changes to the files as well. (Great documentation ik)
 
