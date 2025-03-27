@@ -1,20 +1,9 @@
 import configparser
 import subprocess as sp
-from tkinter import filedialog, Tk
 import validators
 import win32clipboard
-
-
-class RacoonUtilitiesMissingInputError(Exception):
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
-
-
-class RacoonUtilitiesDirectoryError(Exception):
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
+from Racoon import RacoonUtils as Ru
+from Racoon import RacoonErrors as RuE
 
 
 class Bcolors:
@@ -28,101 +17,6 @@ class Bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-
-def makeVideo(image_input_path, sound_input_paths, output_path):
-    if image_input_path == "" or sound_input_paths == "":
-        raise RacoonUtilitiesMissingInputError("No input")
-
-    if output_path == '':
-        output_path = sound_input_paths[0][:sound_input_paths[0].rfind("\\")]
-
-    if len(sound_input_paths) == 1:
-        sound_input_paths = sound_input_paths[0]
-        name = sound_input_paths[sound_input_paths.rfind('\\') + 1:sound_input_paths.rfind('.')]
-
-        sp.run(
-            f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
-            shell=True)
-    else:
-        names = []
-        for INDEX in range(0, len(sound_input_paths)):
-            names.append(
-                sound_input_paths[INDEX][sound_input_paths[INDEX].rfind("\\"):sound_input_paths[INDEX].rfind(".")])
-        print(names)
-
-        for INDEX in range(len(names)):
-            sp.run(
-                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[INDEX]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[INDEX]}.mp4"',
-                shell=True)
-
-
-def makeAlbum(image_input_path, sound_input_paths, final_filename, output_path):
-    if image_input_path == "" or sound_input_paths == "" or final_filename == "":
-        raise RacoonUtilitiesMissingInputError("No input")
-
-    if output_path == '':
-        output_path = sound_input_paths[0][:sound_input_paths[0].rfind("\\")]
-    print(output_path)
-
-    inputPath = ''
-    for i in sound_input_paths:
-        inputPath += f'-i "{i.replace('/', '\\')}" '
-
-    preConcat = ''
-    for i in range(0, len(sound_input_paths)):
-        preConcat += f'[{i}:a]'
-
-    extension = sound_input_paths[0][sound_input_paths[0].rfind('.'):]
-
-    sp.run(
-        f'ffmpeg {inputPath}-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" {output_path}\\output{extension}',
-        shell=True)
-    sp.run(f'ren "{output_path}\\output{extension}" "{final_filename + extension}"', shell=True)
-
-    sp.run(
-        f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"',
-        shell=True)
-
-
-def askExit():
-    input("Press enter to exit...")
-    exit()
-
-
-def mkFolder(path, folder_name):
-    try:
-        if sp.run(f'mkdir {path}\\{folder_name}', shell=True, capture_output=True).returncode != 0:
-            raise RacoonUtilitiesDirectoryError(f'Folder {folder_name} already exists')
-    except RacoonUtilitiesDirectoryError:
-        print(f'Folder {folder_name} already exists')
-    else:
-        sp.run(f'mkdir {path}\\{folder_name}', shell=True, capture_output=True)
-
-
-def winDirPath(message):
-    root = Tk()
-    root.lift()
-    root.withdraw()
-    tempPath = filedialog.askdirectory(title=message, parent=root).replace('/', '\\').strip()
-    return tempPath
-
-
-def winFilePath(message):
-    root = Tk()
-    root.lift()
-    root.withdraw()
-    tempPath = filedialog.askopenfilename(title=message, parent=root).replace('/', '\\').strip()
-    return tempPath
-
-
-def winFilesPath(message):
-    root = Tk()
-    root.lift()
-    root.withdraw()
-    tempPaths = list(filedialog.askopenfilenames(title=message, parent=root))
-    for i in range(len(tempPaths)):
-        tempPaths[i] = tempPaths[i].replace('/', '\\')
-    return tempPaths
 
 # Yeaaah...
 def execute(cmd):
@@ -253,11 +147,11 @@ def getUserOptions():
                 options = options.replace(f'-p {path}', f'')
                 downloadPath = path
             else:
-                path = winDirPath('Download destination')
+                path = Ru.winDirPath('Download destination')
                 options = options.replace(f'-p ', f'')
                 downloadPath = path
         except ():
-            path = winDirPath('Download destination')
+            path = Ru.winDirPath('Download destination')
             downloadPath = path
             oldPath = options[options.find('-p') + 3:]
             if oldPath.find('-') != -1:
@@ -270,4 +164,3 @@ if downloadPath[-1] != ' ':
     downloadPath += ' '
 
 execute(f'yt-dlp -P {downloadPath}{configOptionList}{getUserOptions()}"{primaryUrl}"')
-
