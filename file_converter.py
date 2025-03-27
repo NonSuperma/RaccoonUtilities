@@ -1,45 +1,27 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
+from Racoon import RacoonErrors as RuE
+from Racoon import RacoonUtils as Ru
 
 
-def winFilePath(message):
-	root = Tk()
-	root.lift()
-	root.withdraw()
-	tempPath = filedialog.askopenfilename(title=message, parent=root).replace('/', '\\').strip()
-	return tempPath
 
-
-def winFilesPath(message):
-	root = Tk()
-	root.lift()
-	root.withdraw()
-	tempPaths = list(filedialog.askopenfilenames(title=message, parent=root))
-	for i in range(len(tempPaths)):
-		tempPaths[i] = tempPaths[i].replace('/', '\\')
-	return tempPaths
-
-
-def convertFiles(songs):
-	songsCount = 0
-	for i in songs:
-		if i.find(songs[0][0:2]) != -1:
-			songsCount += 1
+def convertFiles(songs: list):
+	songsCount = len(songs)
 
 	extension = "." + input("Extension: ")
 
 	def convert(name, newExtension):
 		if name[name.rfind("."):] != extension:
 			emptyName = name.replace(name[name.rfind("."):], "")
-			sp.run("ffmpeg -i " + name + " " + emptyName + newExtension, shell=True)
+			sp.run(f'ffmpeg -i "{name}" "{emptyName}{newExtension}"', shell=True)
 		else:
 			pass
 
 	def convertDelete(name, newExtension):
 		if name[name.rfind("."):] != extension:
 			emptyName = name.replace(name[name.rfind("."):], "")
-			sp.run(f"ffmpeg -i {name} {emptyName}{newExtension}", shell=True)
-			sp.run("del " + name.replace("/", "\\"), shell=True)
+			sp.run(f'ffmpeg -i "{name}" "{emptyName}{newExtension}"', shell=True)
+			sp.run(f'del "{name}"', shell=True)
 		else:
 			pass
 
@@ -64,5 +46,5 @@ def convertFiles(songs):
 			convert(songs[0], extension)
 
 if __name__ == '__main__':
-	songs = winFilesPath("Audio Files")
+	songs = Ru.winFilesPath("Audio Files")
 	convertFiles(songs)
