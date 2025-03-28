@@ -34,7 +34,7 @@ class RacoonUtils:
             name = sound_input_paths[sound_input_paths.rfind('\\') + 1:sound_input_paths.rfind('.')]
 
             sp.run(
-                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -b:a 32k -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
+                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -b:a 320k -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
                 shell=True)
         else:
             names = []
@@ -45,7 +45,7 @@ class RacoonUtils:
 
             for INDEX in range(len(names)):
                 sp.run(
-                    f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[INDEX]}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[INDEX]}.mp4"',
+                    f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths[INDEX]}" -c:v libx264 -acodec copy -b:a 320k -r 1 -shortest -vf format=yuv420p "{output_path}\\{names[INDEX]}.mp4"',
                     shell=True)
 
     def makeAlbum(self, output_path: str or None, final_filename: str):
@@ -70,12 +70,12 @@ class RacoonUtils:
         extension = sound_input_paths[0][sound_input_paths[0].rfind('.'):]
 
         sp.run(
-            f'ffmpeg {inputPath}-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" "{output_path}\\output{extension}"',
+            f'ffmpeg {inputPath}-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" -b:a 320k "{output_path}\\output{extension}"',
             shell=True)
         sp.run(f'ren "{output_path}\\output{extension}" "{final_filename + extension}"', shell=True)
 
         sp.run(
-            f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"',
+            f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{output_path}\\{final_filename + extension}" -c:v libx264 -acodec copy -b:a 320k -r 1 -shortest -vf format=yuv420p "{output_path}\\{final_filename}.mp4"',
             shell=True)
 
     @staticmethod
