@@ -3,7 +3,7 @@ from Racoon import RacoonUtils as Ru
 from Racoon import RacoonErrors as RuE
 
 
-if _name__ == "__main__":
+if __name__ == "__main__":
 	imageInputPath = Ru.winFilePath("Album cover")
 	soundInputPaths = Ru.winFilesPath("Audio files")
 	outputPath = None
@@ -14,7 +14,7 @@ if _name__ == "__main__":
 			sp.run(f'del "{path}"', shell=True)
 		sp.run(f'del "{imageInputPath}"', shell=True)
 
-	except RacoonUtilitiesMissingInputError:
+	except RuE.MissingInputError:
 		print("No input!")
-		askExit()
+		Ru.askExit()
 	exit()
