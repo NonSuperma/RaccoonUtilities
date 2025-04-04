@@ -1,7 +1,7 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
 from Racoon import RacoonErrors as RuE
-from Racoon import RacoonUtils as Ru
+from Racoon import RacoonMediaTools as Ru
 
 
 
@@ -12,8 +12,8 @@ def convertFiles(songs: list):
 
 	def convert(name, newExtension):
 		if name[name.rfind("."):] != extension:
-			emptyName = name.replace(name[name.rfind("."):], "")
-			sp.run(f'ffmpeg -i "{name}" "{emptyName}{newExtension}"', shell=True)
+			emptyName = name[:name.rfind("\\")+1]
+			sp.run(f'ffmpeg -i "{name}" -b:a 320k "{emptyName}{newExtension}"', shell=True)
 		else:
 			pass
 

@@ -1,6 +1,6 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
-from Racoon import RacoonUtils as Ru
+from Racoon import RacoonMediaTools as RacoonMT
 from Racoon import RacoonErrors as RuE
 
 def createFullAlbum(image_path, audio_paths, album_name):
@@ -19,10 +19,10 @@ def createFullAlbum(image_path, audio_paths, album_name):
 	else:
 		audioFolder = f'.{extensionList[0]}'
 
-	Ru.mkFolder(directoryPath, audioFolder)
-	Ru.mkFolder(directoryPath, ".mp4")
+	RacoonMT.mkFolder(directoryPath, audioFolder)
+	RacoonMT.mkFolder(directoryPath, ".mp4")
 
-	albumData = Ru(image_path, audio_paths)
+	albumData = RacoonMT(image_path, audio_paths)
 	albumData.makeVideo(f'{directoryPath}\\.mp4')
 	albumData.makeAlbum(directoryPath, album_name)
 
@@ -34,8 +34,8 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 
 if __name__ == "__main__":
-	imagePath = Ru.winFilePath("Album cover")
-	audioPaths = Ru.winFilesPath("Audio files")
+	imagePath = RacoonMT.winFilePath("Album cover")
+	audioPaths = RacoonMT.winFilesPath("Audio files")
 
 	workingFolderPath = audioPaths[0][:audioPaths[0].rfind("\\")]
 	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]

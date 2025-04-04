@@ -14,9 +14,9 @@ class RacoonErrors:
             super().__init__(self.message)
 
 
-class RacoonUtils:
+class RacoonMediaTools:
 
-    def __init__(self, image_input_path: str, sound_input_paths: list):
+    def __init__(self, image_input_path: str, sound_input_paths: list[str]):
         self.image_input_path = image_input_path
         self.sound_input_paths = sound_input_paths
 
@@ -33,8 +33,9 @@ class RacoonUtils:
             sound_input_paths = sound_input_paths[0]
             name = sound_input_paths[sound_input_paths.rfind('\\') + 1:sound_input_paths.rfind('.')]
 
+            print(f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"')
             sp.run(
-                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -b:a 320k -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
+                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
                 shell=True)
         else:
             names = []

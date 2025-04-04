@@ -2,7 +2,7 @@ import configparser
 import subprocess as sp
 import validators
 import win32clipboard
-from Racoon import RacoonUtils as Ru
+from Racoon import RacoonMediaTools as Ru
 from Racoon import RacoonErrors as RuE
 
 

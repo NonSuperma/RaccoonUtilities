@@ -5,9 +5,6 @@ def shell(command, captureOutput=bool()):
 	sp.run(command, shell=True, capture_output=captureOutput)
 
 file = tkinter.filedialog.askopenfilename().replace('/', '\\')
-if file.find(" ") != -1:
-	shell(f'ren "{file}" "{file[file.rfind('\\')+1:].replace(' ', '_')}"')
-	file = file.replace(' ', '_')
 
 fileName = file[file.rfind('\\')+1:file.rfind('.')]
 path = file[:file.rfind("\\")]
@@ -25,5 +22,5 @@ else:
 	end = tempVar
 
 
-print(f'ffmpeg -ss {start} -to {end} -i {file} -c copy "{path}\\{fileName}__CUT.mp4"')
-shell(f'ffmpeg -ss {start} -to {end} -i {file} -c copy "{path}\\{fileName}__CUT.mp4"')
+print(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT.mp4"')
+shell(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT.mp4"')
