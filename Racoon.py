@@ -1,14 +1,15 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
 
+
 class RacoonErrors:
 
-    class RacoonUtilitiesMissingInputError(Exception):
+    class MissingInputError(Exception):
         def __init__(self, message):
             self.message = message
             super().__init__(self.message)
 
-    class RacoonUtilitiesDirectoryError(Exception):
+    class DirectoryError(Exception):
         def __init__(self, message):
             self.message = message
             super().__init__(self.message)
@@ -22,11 +23,13 @@ class RacoonMediaTools:
 
     def makeVideo(self, output_path: str or None):
         image_input_path = self.image_input_path
+        if image_input_path == "":
+            raise RacoonErrors.MissingInputError("No album cover selected")
         sound_input_paths = self.sound_input_paths
-        if image_input_path == "" or sound_input_paths == "":
-            raise RacoonUtilitiesMissingInputError("No input")
+        if sound_input_paths == "":
+            raise RacoonErrors.MissingInputError("No audio/s selected")
 
-        if output_path == None:
+        if output_path is None:
             output_path = sound_input_paths[0][:sound_input_paths[0].rfind("\\")]
 
         if len(sound_input_paths) == 1:
@@ -51,11 +54,15 @@ class RacoonMediaTools:
 
     def makeAlbum(self, output_path: str or None, final_filename: str):
         image_input_path = self.image_input_path
+        if image_input_path == "":
+            raise RacoonErrors.MissingInputError("No album cover selected")
         sound_input_paths = self.sound_input_paths
-        if image_input_path == "" or sound_input_paths == "" or final_filename == "":
-            raise RacoonUtilitiesMissingInputError("No input")
+        if sound_input_paths == '':
+            raise RacoonErrors.MissingInputError("No audio/s selected")
+        if final_filename == '':
+            raise RacoonErrors.MissingInputError("No final filename provided")
 
-        if output_path == None:
+        if output_path is None:
             output_path = sound_input_paths[0][:sound_input_paths[0].rfind("\\")]
         print(output_path)
 
@@ -88,8 +95,8 @@ class RacoonMediaTools:
     def mkFolder(path, folder_name):
         try:
             if sp.run(f'mkdir "{path}\\{folder_name}"', shell=True, capture_output=True).returncode != 0:
-                raise RacoonUtilitiesDirectoryError(f'Folder {folder_name} already exists')
-        except RacoonUtilitiesDirectoryError:
+                raise RacoonErrors.DirectoryError(f'Folder {folder_name} already exists')
+        except RacoonErrors.DirectoryError:
             print(f'Folder {folder_name} already exists')
         else:
             sp.run(f'mkdir "{path}\\{folder_name}"', shell=True, capture_output=True)

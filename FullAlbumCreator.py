@@ -5,7 +5,7 @@ from Racoon import RacoonErrors as RuE
 
 def createFullAlbum(image_path, audio_paths, album_name):
 	if image_path == "" or audio_paths == "" or album_name == "":
-		raise RuE.RacoonUtilitiesMissingInputError("No input")
+		raise RuE.MissingInputError("No input")
 
 	directoryPath = audio_paths[0][:audio_paths[0].rfind("\\")]
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 		albumName = userChoice + '-' + albumName
 	try:
 		createFullAlbum(imagePath, audioPaths, albumName)
-	except RuE.RacoonUtilitiesMissingInputError:
+	except RuE.MissingInputError:
 		print(f'No input / Wrong input')
 		askExit()
 	exit()
