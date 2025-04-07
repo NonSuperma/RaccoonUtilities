@@ -1,7 +1,31 @@
 import json
 import subprocess
-with open('data.json', 'r') as f:
-	data = json.load(f)
+with open('data.json', 'r') as file:
+	data = json.load(file)
+
+
+
+
+def getBitrate(sound_input_path):
+    if len(sound_input_path) == 1:
+        sound_input_path = sound_input_path[0]
+        value = sp.run(
+            f'ffprobe -v quiet -select_streams a:0 -show_entries stream=bit_rate -of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
+            shell=True, capture_output=True).stdout.decode().strip()
+        type = 'bitrate'
+        if value == 'N/A':
+            value = sp.run(
+            f'ffprobe -v quiet -select_streams a:0 -show_entries stream=sample_rate -of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
+            shell=True, capture_output=True).stdout.decode().strip()
+            type = 'samplerate'
+
+        output = {
+            type: int(value)
+        }
+        return output
+
+
+
 
 data = data[0]
 if data["type"] == "playlist":
@@ -37,5 +61,5 @@ elif data["type"] == "album":
 			artists += f'{artist['name']}, '
 		print(f'{artists[:-2]} - {object['name']}')
 		print("Downloading...")
-		subprocess.run(	f'yt-dlp -P "C:\\Users\\tobia\\Downloads" --cookies-from-browser firefox --default-search "ytsearch" --restrict-filenames --no-mtime -o "%(title)s.%(ext)s" -f ba "{artists[:-2]} - {object['name']} video song"', shell=True, capture_output=True)
+		subprocess.run(	f'yt-dlp -P "C:\\Users\\tobia\\Downloads" --cookies-from-browser firefox --default-search "ytsearch" --restrict-filenames -q --no-mtime -o "%(title)s.%(ext)s" -f ba "{artists[:-2]} - {object['name']} video song"', shell=True, capture_output=False)
 		print("Done!\n")
