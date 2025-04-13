@@ -5,10 +5,10 @@ from Racoon import RacoonMediaTools as Ru
 
 
 
-def convertFiles(songs: list):
+def convertFiles(songs: list[str]):
 	songsCount = len(songs)
 
-	extension = "." + input("Extension: ")
+	extension = "." + input('Extension (without ".")\n: ')
 
 	def convert(name, newExtension):
 		if name[name.rfind("."):] != extension:
@@ -20,7 +20,7 @@ def convertFiles(songs: list):
 	def convertDelete(name, newExtension):
 		if name[name.rfind("."):] != extension:
 			emptyName = name.replace(name[name.rfind("."):], "")
-			sp.run(f'ffmpeg -i "{name}" "{emptyName}{newExtension}"', shell=True)
+			sp.run(f'ffmpeg -i "{name}" -b:a 320k "{emptyName}{newExtension}"', shell=True)
 			sp.run(f'del "{name}"', shell=True)
 		else:
 			pass
