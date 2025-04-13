@@ -12,7 +12,7 @@ def convertFiles(songs: list):
 
 	def convert(name, newExtension):
 		if name[name.rfind("."):] != extension:
-			emptyName = name[:name.rfind("\\")+1]
+			emptyName = name[:name.rfind(".")]
 			sp.run(f'ffmpeg -i "{name}" -b:a 320k "{emptyName}{newExtension}"', shell=True)
 		else:
 			pass
