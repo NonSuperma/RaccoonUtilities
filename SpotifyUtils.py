@@ -3,7 +3,17 @@ import subprocess
 with open('data.json', 'r') as file:
 	data = json.load(file)
 
+outputPath = 'C:\\Users\\tobia\\Downloads'
 
+def getImageFromURL(url, output_path):
+    import urllib.request
+    filename = url[url.rfind('/')+1:]
+    extensions = ['.jpg', '.jpeg', '.png', 'webp']
+    if not any(extension in extensions for extension in filename):
+        filename += '.png'
+    print(f'Getting {filename} from URL...')
+    urllib.request.urlretrieve(url, f'{output_path}\\{filename}')
+    print('Done!')
 
 
 def getBitrate(sound_input_path):
@@ -54,12 +64,20 @@ if data["type"] == "playlist":
 		for i in tracks:
 			print(i)
 elif data["type"] == "album":
-	tracks = []
+	total_tracks = int(data['total_tracks'])
+	tracks_downloaded = 1
+
+	print(f'{data['name']}\n')
+
 	for object in data["tracks"]["items"]:
 		artists = ''
 		for artist in object["artists"]:
 			artists += f'{artist['name']}, '
-		print(f'{artists[:-2]} - {object['name']}')
+		print(f'{artists[:-2]} - {object['name']} ({tracks_downloaded}/{total_tracks})')
 		print("Downloading...")
-		subprocess.run(	f'yt-dlp -P "C:\\Users\\tobia\\Downloads" --cookies-from-browser firefox --default-search "ytsearch" --restrict-filenames -q --no-mtime -o "%(title)s.%(ext)s" -f ba "{artists[:-2]} - {object['name']} video song"', shell=True, capture_output=False)
+		subprocess.run(f'yt-dlp -P "C:\\Users\\tobia\\Downloads" --cookies-from-browser firefox --default-search "ytsearch" --restrict-filenames -q --no-mtime -o "%(title)s.%(ext)s" -f ba "{artists[:-2]} - {object['name']} video song"', shell=True, capture_output=False)
 		print("Done!\n")
+		tracks_downloaded += 1
+
+	for object in data["images"]:
+		getImageFromURL(object['url'], outputPath)
