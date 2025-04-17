@@ -2,6 +2,8 @@ import subprocess as sp
 from tkinter import filedialog, Tk
 from Racoon import RacoonMediaTools as RacoonMT
 from Racoon import RacoonErrors as RuE
+from Racoon import RacoonWindowsTools as RacoonWT
+
 
 def createFullAlbum(image_path, audio_paths, album_name):
 	if image_path == "" or audio_paths == "" or album_name == "":
@@ -19,11 +21,11 @@ def createFullAlbum(image_path, audio_paths, album_name):
 	else:
 		audioFolder = f'.{extensionList[0]}'
 
-	RacoonMT.mkFolder(directoryPath, audioFolder)
-	RacoonMT.mkFolder(directoryPath, ".mp4")
+	RacoonWT.mkFolder(directoryPath, audioFolder)
+	RacoonWT.mkFolder(directoryPath, ".mp4")
 
 	albumData = RacoonMT(image_path, audio_paths)
-	albumData.makeVideo(f'{directoryPath}\\.mp4')
+	# albumData.makeVideo(f'{directoryPath}\\.mp4')
 	albumData.makeAlbum(directoryPath, album_name)
 
 	for songPath in audio_paths:
@@ -34,8 +36,8 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 
 if __name__ == "__main__":
-	imagePath = RacoonMT.winFilePath("Album cover")
-	audioPaths = RacoonMT.winFilesPath("Audio files")
+	imagePath = RacoonWT.winFilePath("Album cover")
+	audioPaths = RacoonWT.winFilesPath("Audio files")
 
 	workingFolderPath = audioPaths[0][:audioPaths[0].rfind("\\")]
 	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]
@@ -46,8 +48,8 @@ if __name__ == "__main__":
 	else:
 		albumName = userChoice
 
-	userChoice = input('Add author name to files?\nInput "n" if no, and an author name if yes.\n: ')
-	if userChoice != 'n':
+	userChoice = input('Add author name to files?\nPress enter if no, or input an author name if yes.\n: ')
+	if userChoice != '':
 		for index in range(len(audioPaths)):
 			audioName = audioPaths[index][audioPaths[index].rfind("\\") + 1:]
 			audioPath = audioPaths[index][:audioPaths[index].rfind("\\")]

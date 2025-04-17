@@ -1,11 +1,14 @@
-from Racoon import RacoonMediaTools as Ru
-from Racoon import RacoonErrors as RuE
+from Racoon import RacoonMediaTools as RacoonMTools
+from Racoon import RacoonErrors as RacoonE
+
 
 
 if __name__ == "__main__":
-	imageInputPath = Ru.winFilePath('Pick the album cover image')
-	soundInputPaths = Ru.winFilesPath('Pick songs')
+	imageInputPath = RacoonMTools.winFilePath('Pick the album cover image')
+	soundInputPaths = RacoonMTools.winFilesPath('Pick songs')
 
+	workingFolderPath = soundInputPaths[0][:soundInputPaths[0].rfind("\\")]
+	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]
 	userChoice = input(
 		f'The selected songs are in a folder called "{workingFolderName}"\nPress enter to use that folder as the album name, or input the album name manually\n: ')
 	if userChoice == '':
@@ -15,9 +18,9 @@ if __name__ == "__main__":
 
 	outputPath = None
 	try:
-		vid = Ru(imageInputPath, soundInputPaths)
+		vid = RacoonMTools(imageInputPath, soundInputPaths)
 		vid.makeAlbum(outputPath, albumName)
-	except RuE.MissingInputError:
+	except RacoonE.MissingInputError:
 		print("RacoonUtilitiesMissingInputError: No input")
-		Ru.askExit()
+		RacoonWTools.askExit()
 	exit()
