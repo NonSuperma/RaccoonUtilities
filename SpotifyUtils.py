@@ -9,7 +9,7 @@ def getPlaylistTracks(id):
     artists = []
     tracks = []
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="07a2b4bc36b54607872164e17f900989",
-                                                   client_secret="390feeae5fab47359e0f9bdc3cec1b6a",
+                                                   client_secret="",
                                                    redirect_uri="127.0.0.1"))
     playlistData = sp.playlist(id)
     #with open(f"playlist_Data.json", mode="w", encoding="utf-8") as write_file:
@@ -37,7 +37,7 @@ def getPlaylistTracks(id):
 def getSavedTracks(saved_numbers):
     scope = "user-library-read"
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="07a2b4bc36b54607872164e17f900989",
-                                                   client_secret="390feeae5fab47359e0f9bdc3cec1b6a",
+                                                   client_secret="",
                                                    redirect_uri="127.0.0.1",
                                                    scope=scope))
 
