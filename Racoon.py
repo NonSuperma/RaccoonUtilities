@@ -36,9 +36,16 @@ class RacoonMediaTools:
             sound_input_paths = sound_input_paths[0]
             name = sound_input_paths[sound_input_paths.rfind('\\') + 1:sound_input_paths.rfind('.')]
 
-            print(f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -r 1 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"')
-            sp.run(
-                f'ffmpeg -r 1 -loop 1 -i "{image_input_path}" -i "{sound_input_paths}" -c:v libx264 -acodec copy -b:a 320000 -shortest -vf format=yuv420p "{output_path}\\{name}.mp4"',
+            sp.run(f'ffmpeg '
+                   f'-r 1 '
+                   f'-loop 1 '
+                   f'-i "{image_input_path}" '
+                   f'-i "{sound_input_paths}" '
+                   f'-c:v libx264 '
+                   f'-b:a 320000 '
+                   f'-shortest '
+                   f'-vf format=yuv420p '
+                   f'"{output_path}\\{name}.mp4"',
                 shell=True)
         else:
             names = []
