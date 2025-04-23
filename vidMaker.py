@@ -10,9 +10,9 @@ if __name__ == "__main__":
 	try:
 		vid = Ru(imageInputPath, soundInputPaths)
 		vid.makeVideo(outputPath)
-#		for path in soundInputPaths:
-#			sp.run(f'del "{path}"', shell=True)
-#		sp.run(f'del "{imageInputPath}"', shell=True)
+		for path in soundInputPaths:
+			sp.run(f'del "{path}"', shell=True)
+		sp.run(f'del "{imageInputPath}"', shell=True)
 
 	except RuE.RacoonUtilitiesMissingInputError:
 		print("No input!")

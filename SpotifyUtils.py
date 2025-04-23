@@ -3,21 +3,28 @@ import subprocess
 from pathlib import Path
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+import os
 
+with open('Spotify_info.json', 'r') as f:
+    data = json.load(f)
+
+CLIENT_SECRET: str = data['client_secret'].strip()
+CLIENT_ID: str = data['client_id'].strip()
+REDIRECT_URI: str = data['redirect_uri'].strip()
+
+print(CLIENT_ID, REDIRECT_URI, CLIENT_SECRET)
 
 def getPlaylistTracks(id):
     artists = []
     tracks = []
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="07a2b4bc36b54607872164e17f900989",
-                                                   client_secret="390feeae5fab47359e0f9bdc3cec1b6a",
-                                                   redirect_uri="127.0.0.1"))
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
+                                                   client_secret=CLIENT_SECRET,
+                                                   redirect_uri=REDIRECT_URI))
     playlistData = sp.playlist(id)
-    #with open(f"playlist_Data.json", mode="w", encoding="utf-8") as write_file:
-    #    json.dump(playlistData, write_file, ensure_ascii=False)
+
     trackCount = playlistData['tracks']['total']
 
     print(playlistData['name'])
-
 
     for index in range(0, trackCount, 100):
         result = sp.playlist_items(id, offset=index, limit=100, fields="items.track.name, items.track.artists.name")
@@ -26,19 +33,20 @@ def getPlaylistTracks(id):
             artists.append(artist_names)
             tracks.append(item['track']['name'])
 
-        #with open(f"results{index}.json", mode="w", encoding="utf-8") as write_file:
-        #    json.dump(result, write_file, ensure_ascii=False)
     output = {
         'artists': artists,
-        'tracks': tracks
+        'tracks': tracks,
+        'total': trackCount
     }
     return output
 
+
 def getSavedTracks(saved_numbers):
     scope = "user-library-read"
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id="07a2b4bc36b54607872164e17f900989",
-                                                   client_secret="390feeae5fab47359e0f9bdc3cec1b6a",
-                                                   redirect_uri="127.0.0.1",
+
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
+                                                   client_secret=CLIENT_SECRET,
+                                                   redirect_uri=REDIRECT_URI,
                                                    scope=scope))
 
     count = 0
@@ -50,8 +58,6 @@ def getSavedTracks(saved_numbers):
             count += 1
             print(track['track']['name'])
         print(f'count: {count}')
-
-
 
 
 class Bcolors:
@@ -66,172 +72,141 @@ class Bcolors:
     UNDERLINE = '\033[4m'
 
 
-with open('data.json', 'rb') as file:
-	data = json.load(file)
-
-outputPath = 'C:\\Users\\tobia\\Downloads'
-
-
 def getAudioEncoding(file):
-    run = subprocess.run(f'ffprobe -select_streams a:0 -show_entries stream=codec_name -of default=nokey=1:noprint_wrappers=1 "{file}"', shell=True,capture_output=True)
+    run = subprocess.run(f'ffprobe -select_streams a:0 -show_entries stream=codec_name -of default=nokey=1:noprint_wrappers=1 "{file}"', shell=True, capture_output=True)
     return run.stdout.decode().strip()
 
 
 def getImageFromURL(url, output_path):
-	import urllib.request
-	filename = url[url.rfind('/') + 1:]
-	extensions = ['.jpg', '.jpeg', '.png', 'webp']
-	if not any(extension in extensions for extension in filename):
-		filename += '.png'
-	print(f'Getting {filename} from URL...')
-	urllib.request.urlretrieve(url, f'{output_path}\\{filename}')
-	print('Done!')
+    import urllib.request
+    filename = url[url.rfind('/') + 1:]
+    extensions = ['.jpg', '.jpeg', '.png', 'webp']
+    if not any(extension in extensions for extension in filename):
+        filename += '.png'
+    print(f'Getting {filename} from URL...')
+    urllib.request.urlretrieve(url, f'{output_path}\\{filename}')
+    print('Done!')
 
 
 def getBitrate(sound_input_path):
-	if len(sound_input_path) == 1:
-		sound_input_path = sound_input_path[0]
-		value = sp.run(
-			f'ffprobe '
-			f'-v quiet '
-			f'-select_streams a:0 '
-			f'-show_entries stream=bit_rate '
-			f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
-			shell=True, capture_output=True).stdout.decode().strip()
-		__type = 'bitrate'
-		if value == 'N/A':
-			value = sp.run(
-				f'ffprobe '
-				f'-v quiet '
-				f'-select_streams a:0 '
-				f'-show_entries stream=sample_rate '
-				f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
-				shell=True, capture_output=True).stdout.decode().strip()
-			__type = 'samplerate'
+    if len(sound_input_path) == 1:
+        sound_input_path = sound_input_path[0]
+        value = sp.run(
+            f'ffprobe '
+            f'-v quiet '
+            f'-select_streams a:0 '
+            f'-show_entries stream=bit_rate '
+            f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
+            shell=True, capture_output=True).stdout.decode().strip()
+        __type = 'bitrate'
+        if value == 'N/A':
+            value = sp.run(
+                f'ffprobe '
+                f'-v quiet '
+                f'-select_streams a:0 '
+                f'-show_entries stream=sample_rate '
+                f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
+                shell=True, capture_output=True).stdout.decode().strip()
+            __type = 'samplerate'
 
-		output = {
-			__type: int(value)
-		}
-		return output
-
-
-data = data[0]
-if data["type"] == "playlist":
-	total_tracks = int(data['tracks']['total'])
-	tracks_downloaded = 1
-	tracks_lost = []
-
-	p = Path(r'C:\Users\tobia\Downloads').glob('**/*')
-	files = [x.name for x in p if x.is_file()]
-
-	print(f'{data['name']}\n')
-
-	for _object in data["tracks"]["items"]:
-		trackName = _object['track']['name']
-
-		artists = ''
-		for artist in _object["track"]["artists"]:
-			artists += f'{artist['name']}, '
-		artists = artists[:-2]
-
-		print(f'Downloading {artists} - {trackName}... ({tracks_downloaded}/{total_tracks})')
-
-		for file in files:
-			if file.find(f'{artists} - {trackName}') != -1:
-				print(f"{Bcolors.WARNING}Already downloaded, skipping...{Bcolors.ENDC}\n")
-				continue
+        output = {
+            __type: int(value)
+        }
+        return output
 
 
-		downloadData: str = subprocess.run(f'yt-dlp '
-				   f'-P "C:\\Users\\tobia\\Downloads" '
-				   f'--cookies-from-browser firefox '
-				   f'--default-search "ytsearch" '
-				   f'--merge-output-format mp4 '
-				   f'--restrict-filenames '
-				   f'--no-mtime '
-				   f'-o "%(title)s.%(ext)s" '
-				   f'-f ba '
-				   f'"{artists} - {trackName} video song"',
-				   shell=True, capture_output=True).stdout.decode(errors='ignore').strip()
+def file_exists_without_extension(base_path):
+    directory = os.path.dirname(base_path)
+    base_name = os.path.basename(base_path)
 
-		if downloadData.find(f'has already been downloaded') != -1:
-			print("Already downloaded, skipping...\n")
-			tracks_downloaded += 1
-			continue
-		if downloadData.find(f'Downloading 0 items') != -1:
-			print("No youtube video found! Skipping...\n")
-			print(data)
-			tracks_lost.append(f'{artists} - {trackName}')
-			tracks_downloaded += 1
-			continue
-
-		filePath = downloadData[downloadData.find('[download] Destination: ')+24:]
-		filePath = filePath[:filePath.find('[download]')].replace('/', '\\').strip()
-
-		if filePath.find('[') != -1:
-			print(downloadData)
-			input("Press Enter to Exit...")
-			exit()
+    for file in os.listdir(directory or '.'):
+        if os.path.splitext(file)[0] == base_name:
+            return True
+    return False
 
 
-		print(f'Downloaded {filePath[filePath.rfind('\\')+1:]}')
+if __name__ == '__main__':
+    #url = 'https://open.spotify.com/playlist/6Fo09y9qtxLyNjK4VWPE9d?si=27db522f9d414d1e'
+    #url = "https://open.spotify.com/playlist/6fg55GcV1ZKcsvl8NaGbOe?si=b6f1e564623f45ae"
+    url = input('Enter URL: \n').strip()
+    OUTPUT_PATH: Path = Path(os.path.join(os.path.expanduser("~"), "Downloads"))
+    if url.find('playlist') != -1:
+        data = getPlaylistTracks(url)
+        total_tracks = int(data['total'])
+        tracks_lost = []
+        tracks_downloaded = 1
+        print(f'Loaded {len(data["artists"])} tracks from playlist\n')
+
+        for index in range(0, len(data["artists"])):
+            print(f'Downloading "{data["artists"][index]} - {data["tracks"][index]}" {Bcolors.OKCYAN}({tracks_downloaded}/{total_tracks}){Bcolors.ENDC}')
+
+            if file_exists_without_extension(f'{OUTPUT_PATH}\\{data['artists'][index]} - {data['tracks'][index]}'):
+                print(f"{Bcolors.WARNING}Already downloaded, skipping...{Bcolors.ENDC}\n")
+                tracks_downloaded += 1
+                continue
 
 
-		encoding = getAudioEncoding(filePath)
-		if encoding != filePath[filePath.rfind('.') + 1:]:
-			subprocess.run(f'ffmpeg '
-						   f'-i "{filePath}" '
-						   f'"{filePath[:filePath.rfind('.')]}.{encoding}"'
-						   , shell=True, capture_output=True)
-		subprocess.run(f'del "{filePath}"', shell=True, capture_output=True)
-		newFilePath = f'{filePath[:filePath.rfind('.')]}.{encoding}'
-		subprocess.run(f'ren "{newFilePath}" "{artists} - {trackName}.{encoding}"', shell=True, capture_output=False)
+            downloadData: str = subprocess.run(f'yt-dlp '
+                                               f'-P "{OUTPUT_PATH}" '
+                                               f'--cookies-from-browser firefox '
+                                               f'--default-search "ytsearch" '
+                                               f'--merge-output-format mp4 '
+                                               f'--no-mtime '
+                                               f'--restrict-filenames '
+                                               f'-o "%(title)s.%(ext)s" '
+                                               f'-f ba '
+                                               f'"{data['artists'][index]} - {data['tracks'][index]} video song"',
+                                               shell=True, capture_output=True).stdout.decode(errors='ignore').strip()
 
-		print(f'Converted to {artists} - {trackName}.{encoding}')
+            if downloadData.find(f'has already been downloaded') != -1:
+                print(f"{Bcolors.WARNING}Already downloaded, skipping...{Bcolors.ENDC}\n")
+                tracks_downloaded += 1
+                continue
+            if downloadData.find(f'Downloading 0 items') != -1:
+                print(f"{Bcolors.WARNING}No youtube video found! Skipping...{Bcolors.ENDC}\n")
+                tracks_lost.append(f'{data['artists'][index]} - {data['tracks'][index]}')
+                tracks_downloaded += 1
+                continue
 
-		print(f'')
-		tracks_downloaded += 1
+            filePath = downloadData[downloadData.find('[download] Destination: ') + 24:]
+            filePath: Path = Path(filePath[:filePath.find('[download]')].replace('/', '\\').strip())
+            fileName = os.path.basename(filePath)
 
-	if total_tracks - len(tracks_lost) == total_tracks:
-		if total_tracks > 1:
-			print(f'Succesfully downloaded all {total_tracks} tracks!')
-		else:
-			print(f'Succesfully downloaded 1 track!')
-	else:
-		print(f'Successfully downloaded ({total_tracks - len(tracks_lost)}/{total_tracks}) tracks\n'
-			  f'Failed to download the following:\n')
-		for track in tracks_lost:
-			print(f'- {track}')
-
-	for _object in data["images"]:
-		getImageFromURL(_object['url'], outputPath)
-
+            print(f'{Bcolors.OKGREEN}Downloaded{Bcolors.ENDC} "{fileName}"')
 
 
-elif data["type"] == "album":
-	total_tracks = int(data['total_tracks'])
-	tracks_downloaded = 1
+            encoding = getAudioEncoding(filePath)
+            if encoding != str(filePath)[str(filePath).rfind('.') + 1:]:
+                convertData = subprocess.run(f'ffmpeg '
+                               f'-i "{str(filePath).replace('"', '""')}" '
+                               f'"{str(filePath)[:str(filePath).rfind('.')]}.{encoding}"'
+                               , shell=True, capture_output=True)
+            if convertData.returncode != 0:
+                print(f'{Bcolors.FAIL}Something went wrong while converting "{filePath}"\n{Bcolors.ENDC}')
+                tracks_downloaded += 1
+                continue
+            subprocess.run(f'del "{filePath}"', shell=True, capture_output=True)
+            newFilePath = f'{str(filePath)[:str(filePath).rfind('.')]}.{encoding}'
+            subprocess.run(f'ren "{newFilePath}" "{data['artists'][index]} - {data['tracks'][index]}.{encoding}"', shell=True,
+                           capture_output=False)
 
-	print(f'{data['name']}\n')
+            print(f'{Bcolors.OKGREEN}Converted{Bcolors.ENDC} to {data['artists'][index]} - {data['tracks'][index]}.{encoding}')
 
-	for _object in data["tracks"]["items"]:
-		artists = ''
-		for artist in _object["artists"]:
-			artists += f'{artist['name']}, '
-		print(f'{artists[:-2]} - {_object['name']} ({tracks_downloaded}/{total_tracks})')
-		print("Downloading...")
-		subprocess.run(f'yt-dlp '
-					   f'-P "C:\\Users\\tobia\\Downloads" '
-					   f'--cookies-from-browser firefox '
-					   f'--default-search "ytsearch" '
-					   f'--restrict-filenames '
-					   f'-q '
-					   f'--no-mtime '
-					   f'-o "%(title)s.%(ext)s" '
-					   f'-f ba "{artists[:-2]} - {_object['name']} video song"',
-					   shell=True, capture_output=False)
-		print("Done!\n")
-		tracks_downloaded += 1
+            print(f'')
+            tracks_downloaded += 1
 
-	for _object in data["images"]:
-		getImageFromURL(_object['url'], outputPath)
+        if total_tracks - len(tracks_lost) == total_tracks:
+            if total_tracks > 1:
+                print(f'{Bcolors.OKBLUE}Succesfully downloaded all {total_tracks} tracks!{Bcolors.ENDC}')
+            else:
+                print(f'Succesfully downloaded 1 track!')
+        else:
+            print(f'{Bcolors.OKBLUE}Successfully downloaded ({total_tracks - len(tracks_lost)}/{total_tracks}) tracks\n{Bcolors.ENDC}'
+                  f'Failed to download the following:\n')
+            for track in tracks_lost:
+                print(f'- {track}')
+
+
+
+    elif url.find('album') != -1:
+        urlType = "album"
