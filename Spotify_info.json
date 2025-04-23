@@ -1,5 +1,5 @@
 {
-  "client_secret": "c6e51e2505754fb2a19c11620a55ac9d",
-  "client_id": "07a2b4bc36b54607872164e17f900989",
+  "client_secret": "",
+  "client_id": "",
   "redirect_uri": "http://127.0.0.1:5555/callback"
 }
