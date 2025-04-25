@@ -25,7 +25,8 @@ def execute(cmd):
     lastLine = iter(proc.stdout.readline, '')
     for outputLine in iter(proc.stdout.readline, ""):
         executeOutputData += outputLine
-        outputLine = outputLine.replace('[download]', f'{Bcolors.OKGREEN}[download]{Bcolors.ENDC}').replace('[Merger]', f'{Bcolors.OKCYAN}[Merger]{Bcolors.ENDC}')
+        outputLine = outputLine.replace('[download]', f'{Bcolors.OKGREEN}[download]{Bcolors.ENDC}').replace('[Merger]',
+                                                                                                            f'{Bcolors.OKCYAN}[Merger]{Bcolors.ENDC}')
         if outputLine.find(" Destination: ") != -1 or outputLine.find("Merging") != -1 or outputLine.find(
                 "has already been downloaded") != -1:
             fileName = outputLine[outputLine.rfind('\\') + 1:].replace('\n', '')
@@ -126,18 +127,30 @@ def getUserOptions():
         print(optionsDescription)
 
     # Get tempOptions form OptionsDescription, replacing non-input related shortcut options with their full counterparts
-    options = input(f': ').replace('-d', '--download-sections').replace('-wt', "--write-thumbnail")
-    try:
-        if options[-1] != ' ':
-            options += ' '
-    except (IndexError,):
-        pass
+    options = ((input(f': ')
+                .replace('-d', '--download-sections')
+                .replace('-wt', "--write-thumbnail"))
+               .strip())
 
     # Check for custom options, get input if needed and add to tempOptions
     if options.find("-res") != -1:
         sp.run(f'yt-dlp -F {primaryUrl}')
-        options = options.replace('-res', '-f ' + input(
-            "WARNING!\nInput both audio and video ids if you want both! Include one id for just one stream.\nExample: 234+ba\nid: "))
+
+        tempInput = input(
+            "WARNING!\n"
+            "Input both audio and video ids if you want both! Include one id for just one stream.\n"
+            "Example: 234+ba\n"
+            "id: "
+        )
+        if tempInput != '':
+            options = options.replace('-res', f'-f {tempInput}')
+        else:
+            tempInput = input('Did you mean to press enter?\nPress enter again if yes, id if no\n: ')
+            if tempInput == '':
+                options = options.replace('-res', '')
+            else:
+                options = options.replace('-res', f'-f {tempInput}')
+
     if options.find("-p") != -1:
         try:
             path = options[options.find('-p') + 3:]
@@ -157,6 +170,7 @@ def getUserOptions():
             if oldPath.find('-') != -1:
                 oldPath = oldPath[:oldPath.find('-')].strip()
             options = options.replace(f'-p {oldPath}', f'')
+
     return options
 
 
