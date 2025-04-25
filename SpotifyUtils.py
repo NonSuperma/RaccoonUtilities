@@ -130,11 +130,21 @@ if __name__ == '__main__':
     #silly
     #url = 'https://open.spotify.com/playlist/6Fo09y9qtxLyNjK4VWPE9d?si=27db522f9d414d1e'
     #house
-    url = "https://open.spotify.com/playlist/6fg55GcV1ZKcsvl8NaGbOe?si=b6f1e564623f45ae"
+    #url = "https://open.spotify.com/playlist/6fg55GcV1ZKcsvl8NaGbOe?si=b6f1e564623f45ae"
+    #problematic names
+    url = "https://open.spotify.com/playlist/0H7ep5d4XU0aPMCUZIaOwg?si=600b82d4791c451d&pt=c566801a7663c16ad24a7e16e5f33aa4"
     #url = input('Enter URL: \n').strip()
     OUTPUT_PATH: Path = Path(os.path.join(os.path.expanduser("~"), "Downloads"))
+
     if url.find('playlist') != -1:
         data = getPlaylistTracks(url)
+
+
+        for INDEX in range(len(data)):
+            data['artists'][INDEX] = data['artists'][INDEX].replace('"', '')
+            data['tracks'][INDEX] = data['tracks'][INDEX].replace('"', '')
+            #print(f'{data['artists'][INDEX]} - {data['tracks'][INDEX]}')
+
         total_tracks = int(data['total'])
         tracks_lost = []
         tracks_downloaded = 1
@@ -142,7 +152,7 @@ if __name__ == '__main__':
 
         for index in range(0, len(data["artists"])):
             print(
-                f'Downloading "{data["artists"][index]} - {data["tracks"][index]}" {Bcolors.OKCYAN}({tracks_downloaded}/{total_tracks}){Bcolors.ENDC}')
+                f'{Bcolors.WARNING}Downloading{Bcolors.ENDC} "{data["artists"][index]} - {data["tracks"][index]}" {Bcolors.OKCYAN}({tracks_downloaded}/{total_tracks}){Bcolors.ENDC}')
 
             if file_exists_without_extension(f'{OUTPUT_PATH}\\{data['artists'][index]} - {data['tracks'][index]}'):
                 print(f"{Bcolors.WARNING}Already downloaded, skipping...{Bcolors.ENDC}\n")
@@ -180,7 +190,8 @@ if __name__ == '__main__':
             encoding = getAudioEncoding(filePath)
             if encoding != str(filePath)[str(filePath).rfind('.') + 1:]:
                 convertData = subprocess.run(f'ffmpeg '
-                                             f'-i "{str(filePath).replace('"', '""')}" '
+                                             f'-i '
+                                             f'"{str(filePath).replace('"', '""')}" '
                                              f'"{str(filePath)[:str(filePath).rfind('.')]}.{encoding}"',
                                              shell=True, capture_output=True)
                 if convertData.returncode != 0:
@@ -195,9 +206,11 @@ if __name__ == '__main__':
                                f'"{newFilePath}" '
                                f'"{data['artists'][index]} - {data['tracks'][index]}.{encoding}"',
                                shell=True)
+            else:
+                print(f'{Bcolors.OKGREEN}Downloaded track already has the right container!')
 
             print(
-                f'{Bcolors.OKGREEN}Converted{Bcolors.ENDC} to {data['artists'][index]} - {data['tracks'][index]}.{encoding}')
+                f'{Bcolors.OKGREEN}Converted{Bcolors.ENDC} to "{data['artists'][index]} - {data['tracks'][index]}.{encoding}"')
 
             print(f'')
             tracks_downloaded += 1
