@@ -7,6 +7,7 @@ def shell(command, captureOutput=bool()):
 file = tkinter.filedialog.askopenfilename().replace('/', '\\')
 
 fileName = file[file.rfind('\\')+1:file.rfind('.')]
+fileExtension = file[file.rfind('.'):]
 path = file[:file.rfind("\\")]
 print(file)
 print(path)
@@ -22,5 +23,5 @@ else:
 	end = tempVar
 
 
-print(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT.mp4"')
-shell(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT.mp4"')
+print(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT{fileExtension}"')
+shell(f'ffmpeg -ss {start} -to {end} -i "{file}" -c copy "{path}\\{fileName}__CUT{fileExtension}"')

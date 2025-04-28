@@ -13,7 +13,45 @@ def convertFiles(songs: list[str]):
 	def convert(name, newExtension):
 		if name[name.rfind("."):] != extension:
 			emptyName = name[:name.rfind(".")]
-			sp.run(f'ffmpeg -i "{name}" -b:a 320k "{emptyName}{newExtension}"', shell=True)
+			bitrate = Ru.getBitrate(name)
+
+			if bitrate is None:
+				if newExtension == '.ico':
+					dimentions = Ru.get_media_dimentions(name)
+					print(dimentions)
+					print(f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"')
+
+					if dimentions[0] > 256 or dimentions[1] > 256:
+						print(f'ffmpeg '
+							   f'-y '
+							   f'-i "{name}" '
+							   f'-vf scale=256:256 '
+							   f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"')
+						sp.run(f'ffmpeg '
+							   f'-y '
+							   f'-i "{name}" '
+							   f'-vf scale=256:256 '
+							   f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"',
+							   shell=True, capture_output=True)
+						sp.run(f'del "{name}"', shell=True)
+						sp.run(
+							f'ren "{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}" "{name[name.rfind('\\') + 1:]}"',
+							shell=True)
+
+				sp.run(f'ffmpeg '
+					   f'-y '
+					   f'-i "{name}" '
+					   f'-update 1 '
+					   f'-frames:v 1 '
+					   f'"{emptyName}{newExtension}"',
+					   shell=True)
+
+
+			else:
+
+
+				print(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"')
+				sp.run(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"', shell=True)
 		else:
 			pass
 

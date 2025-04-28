@@ -176,5 +176,5 @@ def getUserOptions():
 
 if downloadPath[-1] != ' ':
     downloadPath += ' '
-
-execute(f'yt-dlp -P {downloadPath}{configOptionList}{getUserOptions()}"{primaryUrl}"')
+# print(f'yt-dlp -P {downloadPath}{configOptionList}{getUserOptions()} "{primaryUrl}"')
+execute(f'yt-dlp -P {downloadPath}{configOptionList}{getUserOptions()} "{primaryUrl}"')
