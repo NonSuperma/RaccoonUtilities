@@ -38,9 +38,8 @@ if __name__ == "__main__":
 	imageInputPath = Ru.winFilePath('Pick the album cover image')
 	soundInputPaths = Ru.winFilesPath('Pick songs')
 
-	workingFolderPath = soundInputPaths[0][:soundInputPaths[0].rfind("\\")]
-	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]
-	show_console()
+	workingFolderPath = soundInputPaths[0].parent
+	workingFolderName = workingFolderPath.name
 	userChoice = input(
 		f'The selected songs are in a folder called "{workingFolderName}"\nPress enter to use that folder as the album name, or input the album name manually\n: ')
 	if userChoice == '':
@@ -50,19 +49,8 @@ if __name__ == "__main__":
 
 	outputPath = None
 
-	try:
-		vid = Ru(imageInputPath, soundInputPaths)
-		vid.makeAlbum(outputPath, albumName)
-
-	except RuE.MissingInputError:
-		show_console()
-		print("No input!")
-		input("Press enter to exit...")
-		sys.exit()
-	except (Exception,):
-		show_console()
-		input("Press enter to exit...")
-		sys.exit()
+	vid = Ru(imageInputPath, soundInputPaths)
+	vid.makeAlbum(outputPath, albumName)
 
 	sound_file = resource_path('au5-1.mp3')
 	playsound(sound_file)
