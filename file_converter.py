@@ -2,6 +2,7 @@ import subprocess as sp
 from tkinter import filedialog, Tk
 from Racoon import RacoonErrors as RuE
 from Racoon import RacoonMediaTools as Ru
+from pathlib import Path
 
 
 
@@ -10,9 +11,9 @@ def convertFiles(songs: list[str]):
 
 	extension = "." + input('Extension (without ".")\n: ')
 
-	def convert(name, newExtension):
-		if name[name.rfind("."):] != extension:
-			emptyName = name[:name.rfind(".")]
+	def convert(name: Path, newExtension):
+		if name.suffix != extension:
+			emptyName = Path.joinpath(name.parent, name.stem)
 			bitrate = Ru.getBitrate(name)
 
 			if bitrate is None:

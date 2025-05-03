@@ -1,6 +1,7 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
 from colorama import init, Fore, Back, Style
+from datetime import datetime, timedelta
 import os
 import msvcrt
 import time
@@ -25,6 +26,18 @@ class RacoonMediaTools:
 	def __init__(self, image_input_path: Path, sound_input_paths: list[Path]):
 		self.image_input_path = image_input_path
 		self.sound_input_paths = sound_input_paths
+
+	@staticmethod
+	def parse_time_string(time_str):
+		dt = datetime.strptime(time_str, "%H:%M:%S.%f")
+		return timedelta(hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=dt.microsecond)
+
+	@staticmethod
+	def add_times(time_list):
+		total = timedelta()
+		for t in time_list:
+			total += RacoonMediaTools.parse_time_string(t)
+		return str(total)
 
 	@staticmethod
 	def askExit(message: str) -> None:
@@ -194,44 +207,24 @@ class RacoonMediaTools:
 			sound_input_paths: Path = Path(sound_input_paths[0])
 			name = sound_input_paths.stem
 
-			encoding = RacoonMediaTools.getAudioEncoding(sound_input_paths)
+			duration = RacoonMediaTools.getAudioDuration(sound_input_paths)
+			ffmpegOutput = sp.run(f'ffmpeg '
+								  # f'-loglevel fatal '
+								  f'-y '
+								  f'-loop 1 '
+								  f'-framerate 1 '
+								  f'-i "{image_input_path}" '
+								  f'-i "{sound_input_paths}" '
+								  f'-c:v libx264 '
+								  f'-tune stillimage '
+								  f'-c:a aac '
+								  f'-t {duration} '
+								  f'-movflags +faststart '
+								  f'-vf "format=yuv420p" '
+								  f'-r 1 '
+								  f'"{output_path}\\{name}.mp4"',
+								  shell=True, capture_output=False)
 
-			if encoding == 'opus':
-				print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Keeping Opus as encoder')
-				ffmpegOutput = sp.run(f'ffmpeg '
-									  # f'-loglevel fatal '
-									  f'-y '
-									  f'-stream_loop -1 '
-									  f'-framerate 1 '
-									  f'-i "{image_input_path}" '
-									  f'-i "{sound_input_paths}" '
-									  f'-c:v libx264 '
-									  f'-tune stillimage '
-									  f'-c:a copy '
-									  f'-shortest '
-									  f'-movflags +faststart '
-									  f'-vf "format=yuv420p" '
-									  f'-r 1 '
-									  f'"{output_path}\\{name}.mp4"',
-									  shell=True, capture_output=False)
-
-			else:
-				ffmpegOutput = sp.run(f'ffmpeg '
-									  # f'-loglevel fatal '
-									  f'-y '
-									  f'-stream_loop -1 '
-									  f'-framerate 1 '
-									  f'-i "{image_input_path}" '
-									  f'-i "{sound_input_paths}" '
-									  f'-c:v libx264 '
-									  f'-tune stillimage '
-									  f'-c:a opus '
-									  f'-shortest '
-									  f'-movflags +faststart '
-									  f'-vf "format=yuv420p" '
-									  f'-r 1 '
-									  f'"{output_path}\\{name}.mp4"',
-									  shell=True, capture_output=False)
 			if lenght_check:
 				oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_paths)
 				converterDuration = RacoonMediaTools.getAudioDuration(Path(f'{output_path}\\{name}.mp4'))
@@ -285,7 +278,7 @@ class RacoonMediaTools:
 		init(autoreset=True)
 
 		image_input_path = self.image_input_path
-		if image_input_path == "":
+		if image_input_path == '':
 			raise RacoonErrors.MissingInputError("No album cover selected")
 		sound_input_paths = self.sound_input_paths
 		if sound_input_paths == '':
@@ -293,27 +286,8 @@ class RacoonMediaTools:
 		if final_filename == '':
 			raise RacoonErrors.MissingInputError("No final filename provided")
 
-		if output_path is None:
-			output_path = sound_input_paths[0].parent
 
-		inputPath = ''
-		for path in sound_input_paths:
-			inputPath += f'-i "{path}" '
 
-		preConcat = ''
-		for i in range(0, len(sound_input_paths)):
-			preConcat += f'[{i}:a]'
-
-		extension = sound_input_paths[0].suffix
-
-		sp.run(f'ffmpeg '
-			   f'-y '
-			   f'{inputPath}'  # No space here on purpose
-			   f'-filter_complex "{preConcat}concat=n={len(sound_input_paths)}:v=0:a=1" '
-			   f'-b:a 256k '
-			   f'"{output_path}\\{final_filename + extension}"',
-			   shell=True)
-
-		print(image_input_path, [(Path(f'{output_path}\\{final_filename + extension}'))])
-		tempVid = RacoonMediaTools(image_input_path, [(Path(f'{output_path}\\{final_filename + extension}'))])
-		tempVid.makeVideo(output_path, lenght_check=False)
+		#print(image_input_path, [(Path(f'{output_path}\\{final_filename + extension}'))])
+		#tempVid = RacoonMediaTools(image_input_path, [(Path(f'{output_path}\\{final_filename + extension}'))])
+		#tempVid.makeVideo(output_path, lenght_check=False)
