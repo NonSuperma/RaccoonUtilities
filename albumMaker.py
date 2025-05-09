@@ -52,7 +52,7 @@ if __name__ == "__main__":
 	vid = Ru(imageInputPath, soundInputPaths)
 	vid.makeAlbum(outputPath, albumName)
 
-	sound_file = resource_path('au5-1.mp3')
-	playsound(sound_file)
+	#sound_file = resource_path('au5-1.mp3')
+	#playsound(sound_file)
 
 	sys.exit(0)

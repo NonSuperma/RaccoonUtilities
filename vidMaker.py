@@ -30,16 +30,15 @@ if __name__ == "__main__":
 		Ru.askExit('No input sounds')
 
 	outputPath = None
-	try:
-		vid = Ru(imageInputPath, soundInputPaths)
-		print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Making video...')
-		vid.makeVideo(outputPath)
-		print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Done!')
-		for path in soundInputPaths:
-			sp.run(f'del "{path}"', shell=True)
-		sp.run(f'del "{imageInputPath}"', shell=True)
-	except (Exception,):
-		Ru.askExit(f'Something went wrong')
+	vid = Ru(imageInputPath, soundInputPaths)
+	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Making video...')
+	vid.makeVideo(outputPath, lenght_check=False, pure_audio=False	)
+	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Done!')
+	#for path in soundInputPaths:
+	#	sp.run(f'del "{path}"', shell=True)
+	#sp.run(f'del "{imageInputPath}"', shell=True)
+
+
 
 	sound_file = resource_path('au5-1.mp3')
 	playsound(sound_file)

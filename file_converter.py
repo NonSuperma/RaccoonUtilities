@@ -52,7 +52,9 @@ def convertFiles(songs: list[str]):
 
 
 				print(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"')
-				sp.run(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"', shell=True)
+				# sp.run(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"', shell=True)
+				sp.run(f'ffmpeg -y -i "{name}" -b:a 270k "{emptyName}{newExtension}"',
+					   shell=True)
 		else:
 			pass
 
