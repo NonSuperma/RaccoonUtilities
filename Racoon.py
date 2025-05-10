@@ -361,16 +361,32 @@ class RacoonMediaTools:
                 Path.joinpath(output_path, 'audio_input_list.txt').unlink()
 
             concaded_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+
+            if TEST:
+                converted_durations = []
+                for path in temp_audio_paths:
+                    converted_durations.append(RacoonMediaTools.getAudioDuration(path))
+
+                converted_duration = RacoonMediaTools.add_times(converted_durations)
+                final_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+
+                print(f'Oryginal duration: {converted_duration}')
+                print(f'Converted duration: {final_duration}')
+                print(
+                    f'Duration difference (converted - oryginal): {RacoonMediaTools.parse_time_string(final_duration) - RacoonMediaTools.parse_time_string(converted_duration)}')
+
+
+
             ffmpegOutput_vid = sp.run(f'ffmpeg '
-                                      # f'-loglevel fatal '
+                                      f'-loglevel fatal '
                                       f'-y '
                                       f'-loop 1 '
                                       f'-framerate 1 '
                                       f'-i "{self.image_input_path}" '
-                                      f'-i "{final_concad_file_path}" '
+                                      f'-i "{output_path}\\{final_filename}.opus" '
                                       f'-c:v libx264 '
                                       f'-tune stillimage '
-                                      f'-c:a opus '
+                                      f'-c:a aac '
                                       f'-t {concaded_duration} '
                                       f'-movflags +faststart '
                                       f'-vf "format=yuv420p" '
