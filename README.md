@@ -1,3 +1,5 @@
+Outdated readme
+too much changes, tooooo little care
 Couple of small python scripts that I work on to learn python and use them for video downloading/editing\
 Use as you wish, it's bad anyway\
 \
