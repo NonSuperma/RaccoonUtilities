@@ -19,7 +19,7 @@ def resource_path(relative_path):
 
 
 if __name__ == "__main__":
-	test = True
+	test = False
 	if not test:
 		imageInputPath = Ru.winFilePath('Pick the album cover image')
 	else:
