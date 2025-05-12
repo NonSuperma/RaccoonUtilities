@@ -304,7 +304,7 @@ class RacoonMediaTools:
             print(output_path)
 
         def concad_audio(audio_paths: list[Path]):
-            TEST = True
+            TEST = False
             convertion_sufix = '.flac'
             final_concad_file_path = Path.joinpath(output_path, final_filename).with_suffix(convertion_sufix)
 
@@ -347,18 +347,20 @@ class RacoonMediaTools:
                 for temp_audio_path in temp_audio_paths:
                     audio_input_list.write(f"file '{str(temp_audio_path)}'\n")
 
-
-
             ffmpegOutput_concad = sp.run(f'ffmpeg '
                                          f'-y '
+                                         f'-loglevel fatal '
                                          f'-f concat '
                                          f'-safe 0 '
                                          f'-i "{Path.joinpath(output_path, 'audio_input_list.txt')}" '
                                          f'-c:a flac '
                                          f'"{final_concad_file_path}"'
                                          , capture_output=False)
+
             if not TEST:
                 Path.joinpath(output_path, 'audio_input_list.txt').unlink()
+                for path in temp_audio_paths:
+                    path.unlink()
 
             concaded_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
 
@@ -383,7 +385,7 @@ class RacoonMediaTools:
                                       f'-loop 1 '
                                       f'-framerate 1 '
                                       f'-i "{self.image_input_path}" '
-                                      f'-i "{output_path}\\{final_filename}.opus" '
+                                      f'-i "{output_path}\\{final_filename}.flac" '
                                       f'-c:v libx264 '
                                       f'-tune stillimage '
                                       f'-c:a aac '
