@@ -21,6 +21,16 @@ class RacoonErrors:
             self.message = message
             super().__init__(self.message)
 
+    class FfmpegGeneralError(Exception):
+        def __init__(self, message):
+            self.message = message
+            super().__init__(self.message)
+
+    class FfmpegConcadError(Exception):
+        def __init__(self, message):
+            self.message = message
+            super().__init__(self.message)
+
 
 class RacoonMediaTools:
 
@@ -141,15 +151,27 @@ class RacoonMediaTools:
         return ffprobeOutput.stdout.decode().strip()
 
     @staticmethod
-    def getAudioDuration(file_path: Path) -> float or None:
+    def getAudioDuration(file_path: Path) -> str or None:
+
+        def seconds_to_hhmmss(s: float) -> str:
+            h = int(s // 3600)
+            m = int((s % 3600) // 60)
+            sec = s % 60
+            return f"{h:02d}:{m:02d}:{sec:06.3f}"
+
         ffprobeOutput = sp.run(
-            f'ffprobe -sexagesimal -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "{file_path}"',
+            f'ffprobe '
+            f'-show_entries format=duration '
+            f'-of default=noprint_wrappers=1:nokey=1 '
+            f'"{file_path}"',
             shell=True, capture_output=True)
+
         if ffprobeOutput.returncode != 0:
             print(ffprobeOutput.stdout.decode())
             return None
+
         else:
-            return ffprobeOutput.stdout.decode().strip()
+            return seconds_to_hhmmss(float(ffprobeOutput.stdout.decode()))
 
     @staticmethod
     def count_open_windows(process_name: str) -> int or None:
@@ -272,7 +294,7 @@ class RacoonMediaTools:
                     f'-i "{sound_input_paths[INDEX]}" '
                     f'-c:v libx264 '
                     f'-tune stillimage '
-                    f'-c:a opus '
+                    f'-c:a aac '
                     f'-b:a 256k '
                     f'-shortest '
                     f'-movflags +faststart '
@@ -298,27 +320,23 @@ class RacoonMediaTools:
 
     def makeAlbum(self, output_path: str or None, final_filename: str):
         init(autoreset=True)
+        TEST = False
 
         if output_path == None:
             output_path = self.sound_input_paths[0].parent
-            print(output_path)
+            if TEST:
+                print(output_path)
 
         def concad_audio(audio_paths: list[Path]):
-            TEST = False
             convertion_sufix = '.flac'
             final_concad_file_path = Path.joinpath(output_path, final_filename).with_suffix(convertion_sufix)
-
-            # Duration list BEFORE CONVERTION
-            oryginal_audio_durations = []
-            for audio_path in audio_paths:
-                oryginal_audio_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
 
             # Temp audio paths like output_path//"audio1.flac"
             temp_audio_paths = []
             for index in range(len(audio_paths)):
                 temp_audio_paths.append(Path(output_path, 'audio' + str(index)).with_suffix(convertion_sufix))
 
-
+            # Test to see input paths,  oryginal added durations and temp audio paths
             if TEST:
                 for audio_path in audio_paths:
                     print(audio_path)
@@ -327,125 +345,145 @@ class RacoonMediaTools:
 
                 print(temp_audio_paths)
 
+            #Convert every audio input to the temp audio file
             for index in range(len(audio_paths)):
                 audio_path = audio_paths[index]
                 temp_audio_path = temp_audio_paths[index]
 
+                print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
+                      f'Converting {Fore.LIGHTYELLOW_EX}"{audio_path.name}"{Fore.RESET} '
+                      f'to {convertion_sufix}...  '
+                      f'{Fore.LIGHTGREEN_EX}({index+1}/{len(audio_paths)}){Fore.RESET}')
 
                 ffmpegOutput_converter = sp.run(f'ffmpeg '
-                                      f'-loglevel fatal '
-                                      f'-y '
-                                      f'-i "{audio_path}" '
-                                      f'-c:a flac '
-                                      f'"{temp_audio_path}"',
-                                      shell=True, capture_output=False)
-                if not TEST:
-                    audio_path.unlink()
+                                        f'-loglevel fatal '
+                                        f'-y '
+                                        f'-i "{audio_path}" '
+                                        f'-c:a flac '
+                                        f'"{temp_audio_path}"',
+                                        shell=True, capture_output=False)
 
 
             with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
                 for temp_audio_path in temp_audio_paths:
                     audio_input_list.write(f"file '{str(temp_audio_path)}'\n")
 
-            ffmpegOutput_concad = sp.run(f'ffmpeg '
-                                         f'-y '
-                                         f'-loglevel fatal '
-                                         f'-f concat '
-                                         f'-safe 0 '
-                                         f'-i "{Path.joinpath(output_path, 'audio_input_list.txt')}" '
-                                         f'-c:a flac '
-                                         f'"{final_concad_file_path}"'
-                                         , capture_output=False)
+            # Concad audio files
+            print(f'\n{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} Concading audio files into one...  ')
+            try:
+                ffmpegOutput_concad = sp.run(f'ffmpeg '
+                                             f'-y '
+                                             f'-loglevel fatal '
+                                             f'-f concat '
+                                             f'-safe 0 '
+                                             f'-i "{Path.joinpath(output_path, 'audio_input_list.txt')}" '
+                                             f'-c:a flac '
+                                             f'"{final_concad_file_path}"'
+                                             , capture_output=True)
+                if ffmpegOutput_concad.returncode != 0:
+                    raise RacoonErrors.FfmpegConcadError('something went to shit')
 
-            if not TEST:
-                Path.joinpath(output_path, 'audio_input_list.txt').unlink()
-                for path in temp_audio_paths:
-                    path.unlink()
+                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
 
-            concaded_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+            except RacoonErrors.FfmpegConcadError:
+                print(ffmpegOutput_concad)
+                RacoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} {Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
+            else:
+                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}File already exists.... indredible{Fore.RESET} ')
 
-            if TEST:
+            # Get times
+
+            # Duration list BEFORE CONVERTION
+            try:
+                oryginal_audios_durations = []
+                for audio_path in audio_paths:
+                    oryginal_audios_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
+                oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audio_durations)
+            except (Exception,):
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
+            else:
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {oryginal_audio_duration}')
+
+            try:
                 converted_durations = []
                 for path in temp_audio_paths:
                     converted_durations.append(RacoonMediaTools.getAudioDuration(path))
 
                 converted_duration = RacoonMediaTools.add_times(converted_durations)
+
+            except (Exception,):
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
+            else:
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {converted_duration}')
+
+            try:
                 final_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+            except (Exception,):
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Final file duration: {Fore.RED}ERROR{Fore.RESET}')
+            else:
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Final file duration: {final_duration}')
 
-                print(f'Oryginal duration: {converted_duration}')
-                print(f'Converted duration: {final_duration}')
-                print(
-                    f'Duration difference (converted - oryginal): {RacoonMediaTools.parse_time_string(final_duration) - RacoonMediaTools.parse_time_string(converted_duration)}')
+            try:
+                convertionDifference = RacoonMediaTools.parse_time_string(final_duration) - RacoonMediaTools.parse_time_string(oryginal_audios_duration)
+            except (Exception,):
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Duration difference (converted - oryginal): {Fore.RED}ERROR{Fore.RESET}')
+            else:
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Duration difference (converted - oryginal): {convertionDifference}')
+
+
+            # Remove temp audio files from disc
+            if not TEST:
+                Path.joinpath(output_path, 'audio_input_list.txt').unlink()
+                for path in temp_audio_paths:
+                    path.unlink()
+
+            print(f'\n{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Making video...')
+            try:
+                ffmpegOutput_vid = sp.run(f'ffmpeg '
+                                          f'-loglevel fatal '
+                                          f'-y '
+                                          f'-loop 1 '
+                                          f'-framerate 1 '
+                                          f'-i "{self.image_input_path}" '
+                                          f'-i "{output_path}\\{final_filename}.flac" '
+                                          f'-c:v libx264 '
+                                          f'-tune stillimage '
+                                          f'-c:a aac '
+                                          f'-b:a 128k '
+                                          f'-t {converted_duration} '
+                                          f'-movflags +faststart '
+                                          f'-vf "format=yuv420p" '
+                                          f'-r 1 '
+                                          f'"{output_path}\\{final_filename}.mp4"',
+                                          shell=True, capture_output=False)
+                if ffmpegOutput_vid.returncode != 0:
+                    raise RacoonErrors.FfmpegGeneralError('something went to shit')
+                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
+
+            except RacoonErrors.FfmpegGeneralError:
+                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} {Fore.RED}Something went wrong while making the video!{Style.RESET_ALL}')
+                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Trying without re-encoding the audio...')
+
+                ffmpegOutput_vid = sp.run(f'ffmpeg '
+                                          f'-loglevel fatal '
+                                          f'-y '
+                                          f'-loop 1 '
+                                          f'-framerate 1 '
+                                          f'-i "{self.image_input_path}" '
+                                          f'-i "{output_path}\\{final_filename}.flac" '
+                                          f'-c:v libx264 '
+                                          f'-tune stillimage '
+                                          f'-c:a copy '
+                                          f'-t {converted_duration} '
+                                          f'-movflags +faststart '
+                                          f'-vf "format=yuv420p" '
+                                          f'-r 1 '
+                                          f'"{output_path}\\{final_filename}.mp4"',
+                                          shell=True, capture_output=False)
+
+                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
 
 
 
-            ffmpegOutput_vid = sp.run(f'ffmpeg '
-                                      f'-loglevel fatal '
-                                      f'-y '
-                                      f'-loop 1 '
-                                      f'-framerate 1 '
-                                      f'-i "{self.image_input_path}" '
-                                      f'-i "{output_path}\\{final_filename}.flac" '
-                                      f'-c:v libx264 '
-                                      f'-tune stillimage '
-                                      f'-c:a aac '
-                                      f'-t {concaded_duration} '
-                                      f'-movflags +faststart '
-                                      f'-vf "format=yuv420p" '
-                                      f'-r 1 '
-                                      f'"{output_path}\\{final_filename}.mp4"',
-                                      shell=True, capture_output=False)
-
-            a = 1
-            if a == 2:
-                for audio_path in audio_paths:
-                    audio_path_converted = audio_path.with_suffix(sufix)
-                    test = True
-
-                    if audio_path.suffix != sufix:
-                        sp.run(f'ffmpeg '
-                              f'-i "{audio_path}" '
-                              f'-c:a flac '
-                              f'"{audio_path_converted}"',
-                              shell=True, capture_output=False)
-                    if not test:
-                        audio_path.unlink()
-
-                for index in range(len(audio_paths)):
-                    audio_paths[index] = audio_paths[index].with_suffix(sufix)
-
-                with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
-                    for audio_path in audio_paths:
-                        audio_input_list.write(f"file '{audio_path}'\n")
-
-                audio_path_concaded = Path(output_path / final_filename).with_suffix(sufix)
-                sp.run(f'ffmpeg '
-                       f'-f concat '
-                       f'-safe 0 '
-                       f'-i "{Path.joinpath(output_path, 'audio_input_list.txt')}" '
-                       f'-c copy '
-                       f'"{audio_path_concaded}"',
-                       shell=True, capture_output=False)
-
-                #Path(Path.joinpath(output_path, 'audio_input_list.txt')).unlink()
-
-                if test:
-                    converted_durations = []
-                    for audio_path in audio_paths:
-                        converted_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
-                    converted_duration = RacoonMediaTools.add_times(converted_durations)
-                    final_duration = RacoonMediaTools.getAudioDuration(audio_path_concaded)
-
-                    for index in range(len(audio_paths)):
-                        print(f'{index + 1}_converted: {RacoonMediaTools.getAudioDuration(audio_paths[index])}')
-
-                    for index in range(len(oryginal_durations)):
-                        print(f'{index + 1}: {oryginal_durations[index]}')
-
-                    print(f'Oryginal duration: {converted_duration}')
-                    print(f'Converted duration: {final_duration}')
-                    print(f'Duration difference (converted - oryginal): {RacoonMediaTools.parse_time_string(final_duration) - RacoonMediaTools.parse_time_string(converted_duration)}')
-
-                
         concad_audio(self.sound_input_paths)
 
