@@ -39,16 +39,33 @@ class RacoonMediaTools:
         self.sound_input_paths: list[Path] = sound_input_paths
 
     @staticmethod
-    def parse_time_string(time_str):
-        dt = datetime.strptime(time_str, "%H:%M:%S.%f")
-        return timedelta(hours=dt.hour, minutes=dt.minute, seconds=dt.second, microseconds=dt.microsecond)
+    def seconds_to_hhmmss(s: float) -> str:
+        sign = "-" if s < 0 else ""
+        s = abs(s)
+        h = int(s // 3600)
+        m = int((s % 3600) // 60)
+        sec = s % 60
+        return f"{sign}{h:02d}:{m:02d}:{sec:06.3f}"
 
     @staticmethod
-    def add_times(time_list):
-        total = timedelta()
+    def hhmmss_to_seconds(timestamp: str) -> float:
+        parts = timestamp.split(':')
+        if len(parts) != 3:
+            raise ValueError(f"Invalid format: expected 'HH:MM:SS.sss', got '{timestamp}'")
+
+        hours = int(parts[0])
+        minutes = int(parts[1])
+        seconds = float(parts[2])
+
+        return hours * 3600 + minutes * 60 + seconds
+
+
+    @staticmethod
+    def add_times(time_list: list[str]) -> str:
+        total = 0
         for t in time_list:
-            total += RacoonMediaTools.parse_time_string(t)
-        return str(total)
+            total += RacoonMediaTools.hhmmss_to_seconds(t)
+        return RacoonMediaTools.seconds_to_hhmmss(total)
 
     @staticmethod
     def askExit(message: str) -> None:
@@ -153,12 +170,6 @@ class RacoonMediaTools:
     @staticmethod
     def getAudioDuration(file_path: Path) -> str or None:
 
-        def seconds_to_hhmmss(s: float) -> str:
-            h = int(s // 3600)
-            m = int((s % 3600) // 60)
-            sec = s % 60
-            return f"{h:02d}:{m:02d}:{sec:06.3f}"
-
         ffprobeOutput = sp.run(
             f'ffprobe '
             f'-show_entries format=duration '
@@ -171,7 +182,7 @@ class RacoonMediaTools:
             return None
 
         else:
-            return seconds_to_hhmmss(float(ffprobeOutput.stdout.decode()))
+            return RacoonMediaTools.seconds_to_hhmmss(float(ffprobeOutput.stdout.decode()))
 
     @staticmethod
     def count_open_windows(process_name: str) -> int or None:
@@ -322,7 +333,7 @@ class RacoonMediaTools:
         init(autoreset=True)
         TEST = False
 
-        if output_path == None:
+        if output_path is None:
             output_path = self.sound_input_paths[0].parent
             if TEST:
                 print(output_path)
@@ -336,7 +347,7 @@ class RacoonMediaTools:
             for index in range(len(audio_paths)):
                 temp_audio_paths.append(Path(output_path, 'audio' + str(index)).with_suffix(convertion_sufix))
 
-            # Test to see input paths,  oryginal added durations and temp audio paths
+            # Test to see input paths, oryginal added durations and temp audio paths
             if TEST:
                 for audio_path in audio_paths:
                     print(audio_path)
@@ -383,13 +394,11 @@ class RacoonMediaTools:
                 if ffmpegOutput_concad.returncode != 0:
                     raise RacoonErrors.FfmpegConcadError('something went to shit')
 
-                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
-
             except RacoonErrors.FfmpegConcadError:
                 print(ffmpegOutput_concad)
                 RacoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} {Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}File already exists.... indredible{Fore.RESET} ')
+                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
 
             # Get times
 
@@ -398,11 +407,11 @@ class RacoonMediaTools:
                 oryginal_audios_durations = []
                 for audio_path in audio_paths:
                     oryginal_audios_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
-                oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audio_durations)
+                oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audios_durations)
             except (Exception,):
                 print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {oryginal_audio_duration}')
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {oryginal_audios_duration}')
 
             try:
                 converted_durations = []
@@ -412,9 +421,9 @@ class RacoonMediaTools:
                 converted_duration = RacoonMediaTools.add_times(converted_durations)
 
             except (Exception,):
-                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {converted_duration}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {converted_duration}')
 
             try:
                 final_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
@@ -424,7 +433,7 @@ class RacoonMediaTools:
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Final file duration: {final_duration}')
 
             try:
-                convertionDifference = RacoonMediaTools.parse_time_string(final_duration) - RacoonMediaTools.parse_time_string(oryginal_audios_duration)
+                convertionDifference = RacoonMediaTools.seconds_to_hhmmss(RacoonMediaTools.hhmmss_to_seconds(final_duration) - RacoonMediaTools.hhmmss_to_seconds(oryginal_audios_duration))
             except (Exception,):
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Duration difference (converted - oryginal): {Fore.RED}ERROR{Fore.RESET}')
             else:
