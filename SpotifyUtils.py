@@ -41,6 +41,14 @@ def getPlaylistTracks(id):
     return output
 
 
+def getPlaylistCoverURL(id: str) -> str:
+    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
+                                                   client_secret=CLIENT_SECRET,
+                                                   redirect_uri=REDIRECT_URI))
+    playlistData = sp.playlist(id)
+    return playlistData['images'][0]['url']
+
+
 def getAlbumTracks(id: str) -> dict[str:str]:
     artists = []
     tracks = []
@@ -152,7 +160,7 @@ if __name__ == '__main__':
 
     if url.find('playlist') != -1:
         data = getPlaylistTracks(url)
-        playlistName = data['playlistName']
+        playlistName = data['playlistName'].replace('?', '_')
         OUTPUT_PATH = Path.joinpath(USER_PATH, 'Downloads', playlistName)
         print(OUTPUT_PATH)
         os.makedirs(Path.joinpath(USER_PATH, 'Downloads', playlistName), exist_ok=True)
@@ -169,7 +177,7 @@ if __name__ == '__main__':
 
         for INDEX in range(0, total_tracks):
             print(
-                f'{Fore.CYAN}Downloading{Fore.RESET} "{artists} - {data["tracks"][INDEX]}" {Fore.LIGHTCYAN_EX}({tracks_downloaded}/{total_tracks}){Fore.RESET}')
+                f'{Fore.CYAN}Downloading{Fore.RESET} "{data["artists"][INDEX]} - {data["tracks"][INDEX]}" {Fore.LIGHTCYAN_EX}({tracks_downloaded}/{total_tracks}){Fore.RESET}')
 
             try:
                 if file_exists_without_extension(f'{OUTPUT_PATH}\\{data['artists'][INDEX]} - {data['tracks'][INDEX]}'):
@@ -251,15 +259,19 @@ if __name__ == '__main__':
             for track in tracks_lost:
                 print(f'- {track}')
 
+        coverURL = getPlaylistCoverURL(url)
+        getImageFromURL(coverURL, OUTPUT_PATH)
+
     elif url.find('album') != -1:
         data = getAlbumTracks(url)
 
-        albumName = data['albumName']
+        albumName = data['albumName'].replace('?', '_')
+
         OUTPUT_PATH = Path.joinpath(USER_PATH, 'Downloads', albumName)
         print(OUTPUT_PATH)
         os.makedirs(Path.joinpath(USER_PATH, 'Downloads', albumName), exist_ok=True)
 
-        for index in range(len(data)):
+        for index in range(len(data['tracks'])):
             data['artists'][index] = data['artists'][index].replace('"', '')
             data['tracks'][index] = data['tracks'][index].replace('"', '')
             # print(f'{data['artists'][INDEX]} - {data['tracks'][INDEX]}')
@@ -273,7 +285,7 @@ if __name__ == '__main__':
         for index in range(0, total_tracks):
             artists = data["artists"][index]
             track = data["tracks"][index]
-            
+            trackPaths = []
 
             print(
                 f'{Fore.CYAN}Downloading{Fore.RESET} "{artists} - {data["tracks"][index]}" {Fore.LIGHTCYAN_EX}({tracks_downloaded}/{total_tracks}){Fore.RESET}')
@@ -336,6 +348,7 @@ if __name__ == '__main__':
                                f'"{newFilePath}" '
                                f'"{artists} - {track}.{encoding}"',
                                shell=True)
+                trackPaths.append(Path(f'{artists} - {track}.{encoding}'))
             else:
                 print(f'{Fore.GREEN}Downloaded track already has the right container!{Fore.RESET}')
 
