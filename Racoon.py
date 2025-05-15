@@ -3,6 +3,7 @@ from tkinter import filedialog, Tk, BooleanVar
 from typing import Optional, List
 from colorama import init, Fore, Back, Style
 from datetime import datetime, timedelta
+from typing import Optional, Sequence, Tuple, List, Union, cast
 import os
 import msvcrt
 import time
@@ -99,28 +100,86 @@ class RacoonMediaTools:
         return file_path
 
     @staticmethod
-    def winFilePath(message: str) -> Path:
+    def winFilePath(message: str, filetypes=None) -> Path:
         root = Tk()
         root.lift()
         root.withdraw()
-        file_path = Path(filedialog.askopenfilename(title=message, parent=root))
-        if not file_path:
+
+        kwargs = {"title": message, "parent": root}
+        if filetypes is not None:
+            if filetypes == 'audio':
+                selection = cast(Sequence[Tuple[str, str]],
+                                 [
+                                    ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
+                                    ("MP3 files",   "*.MP3"),
+                                    ("AAC files",   "*.AAC"),
+                                    ("FLAC files",  "*.FLAC"),
+                                    ("WAV files",   "*.WAV"),
+                                    ("PCM files",   "*.PCM"),
+                                    ("M4A files",   "*.M4A"),
+                                    ("OPUS files",  "*.opus"),
+                                 ])
+                kwargs["filetypes"] = selection
+            elif filetypes == 'image':
+                selection = cast(Sequence[Tuple[str, str]],
+                                 [
+                                    ("Image files", "*.PNG *.JPEG *.jpg"),
+                                    ("PNG files",   "*.PNG"),
+                                    ("JPEG files",   "*.JPEG"),
+                                    ("JPG files", "*.jpg")
+                                 ])
+                kwargs["filetypes"] = selection
+            else:
+                kwargs["filetypes"] = filetypes
+
+        file_path_str = filedialog.askopenfilename(**kwargs)
+        file_path = Path(file_path_str)
+
+        if not file_path_str:
             raise RacoonErrors.MissingInputError('User closed the window')
 
         return file_path
 
     @staticmethod
-    def winFilesPath(message: str) -> list[Path]:
+    def winFilesPath(message: str, filetypes=None) -> list[Path]:
         root = Tk()
         root.lift()
         root.withdraw()
-        file_paths = list(filedialog.askopenfilenames(title=message, parent=root))
+        kwargs = {"title": message, "parent": root}
+        if filetypes is not None:
+            if filetypes == 'audio':
+                selection = cast(Sequence[Tuple[str, str]],
+                                 [
+                                    ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
+                                    ("MP3 files",   "*.MP3"),
+                                    ("AAC files",   "*.AAC"),
+                                    ("FLAC files",  "*.FLAC"),
+                                    ("WAV files",   "*.WAV"),
+                                    ("PCM files",   "*.PCM"),
+                                    ("M4A files",   "*.M4A"),
+                                    ("OPUS files",  "*.opus"),
+                                 ])
+                kwargs["filetypes"] = selection
+            elif filetypes == 'image':
+                selection = cast(Sequence[Tuple[str, str]],
+                                 [
+                                    ("Image files", "*.PNG *.JPEG"),
+                                    ("PNG files",   "*.PNG"),
+                                    ("JPEG files",   "*.JPEG")
+                                 ])
+                kwargs["filetypes"] = selection
+            else:
+                kwargs["filetypes"] = filetypes
+
+        file_paths = root.tk.splitlist(
+            filedialog.askopenfilenames(**kwargs)
+        )
+        root.destroy()
 
         if not file_paths:
-            raise RacoonErrors.MissingInputError('User closed the window')
+            raise RacoonErrors.MissingInputError("User closed the window")
 
-        path_objects = [Path(p) for p in file_paths]
-        return path_objects
+        return [Path(p) for p in file_paths]
 
     @staticmethod
     def getBitrate(sound_input_path: Path) -> dict[str, int] or None:
