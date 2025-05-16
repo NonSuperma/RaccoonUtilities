@@ -46,7 +46,7 @@ class RacoonMediaTools:
         h = int(s // 3600)
         m = int((s % 3600) // 60)
         sec = s % 60
-        return f"{sign}{h:02d}:{m:02d}:{sec:06.3f}"
+        return f'{sign}{h:02d}:{m:02d}:{sec:06.3f}'
 
     @staticmethod
     def hhmmss_to_seconds(timestamp: str) -> float:
@@ -60,11 +60,12 @@ class RacoonMediaTools:
 
         return hours * 3600 + minutes * 60 + seconds
 
-
     @staticmethod
-    def add_times(time_list: list[str]) -> str:
+    def add_times(time_list: list[str] or list[float]) -> str:
         total = 0
+        format = 's' if time_list is list[str] else ''
         for t in time_list:
+
             total += RacoonMediaTools.hhmmss_to_seconds(t)
         return RacoonMediaTools.seconds_to_hhmmss(total)
 
@@ -108,31 +109,30 @@ class RacoonMediaTools:
         kwargs = {"title": message, "parent": root}
         if filetypes is not None:
             if filetypes == 'audio':
-                selection = cast(Sequence[Tuple[str, str]],
-                                 [
-                                    ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
-                                    ("MP3 files",   "*.MP3"),
-                                    ("AAC files",   "*.AAC"),
-                                    ("FLAC files",  "*.FLAC"),
-                                    ("WAV files",   "*.WAV"),
-                                    ("PCM files",   "*.PCM"),
-                                    ("M4A files",   "*.M4A"),
-                                    ("OPUS files",  "*.opus"),
-                                 ])
-                kwargs["filetypes"] = selection
+                selection = [
+                            ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
+                            ("MP3 files",   "*.MP3"),
+                            ("AAC files",   "*.AAC"),
+                            ("FLAC files",  "*.FLAC"),
+                            ("WAV files",   "*.WAV"),
+                            ("PCM files",   "*.PCM"),
+                            ("M4A files",   "*.M4A"),
+                            ("OPUS files",  "*.opus"),
+                            ]
+
+                kwargs["filetypes"] = selection  # type: ignore[arg-type]
             elif filetypes == 'image':
-                selection = cast(Sequence[Tuple[str, str]],
-                                 [
-                                    ("Image files", "*.PNG *.JPEG *.jpg"),
-                                    ("PNG files",   "*.PNG"),
-                                    ("JPEG files",   "*.JPEG"),
-                                    ("JPG files", "*.jpg")
-                                 ])
-                kwargs["filetypes"] = selection
+                selection = [
+                            ("Image files", "*.PNG *.JPEG *.jpg"),
+                            ("PNG files",   "*.PNG"),
+                            ("JPEG files",   "*.JPEG"),
+                            ("JPG files", "*.jpg")
+                            ]
+                kwargs["filetypes"] = selection  # type: ignore[arg-type]
             else:
                 kwargs["filetypes"] = filetypes
 
-        file_path_str = filedialog.askopenfilename(**kwargs)
+        file_path_str = filedialog.askopenfilename(**kwargs)  # type: ignore[arg-type]
         file_path = Path(file_path_str)
 
         if not file_path_str:
@@ -145,21 +145,20 @@ class RacoonMediaTools:
         root = Tk()
         root.lift()
         root.withdraw()
-        kwargs = {"title": message, "parent": root}
+        kwargs: list[tuple[str, str]] | Sequence[tuple[str, str]] = {"title": message, "parent": root}
         if filetypes is not None:
             if filetypes == 'audio':
-                selection = cast(Sequence[Tuple[str, str]],
-                                 [
-                                    ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
-                                    ("MP3 files",   "*.MP3"),
-                                    ("AAC files",   "*.AAC"),
-                                    ("FLAC files",  "*.FLAC"),
-                                    ("WAV files",   "*.WAV"),
-                                    ("PCM files",   "*.PCM"),
-                                    ("M4A files",   "*.M4A"),
-                                    ("OPUS files",  "*.opus"),
-                                 ])
-                kwargs["filetypes"] = selection
+                selection = [
+                            ("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
+                            ("MP3 files",   "*.MP3"),
+                            ("AAC files",   "*.AAC"),
+                            ("FLAC files",  "*.FLAC"),
+                            ("WAV files",   "*.WAV"),
+                            ("PCM files",   "*.PCM"),
+                            ("M4A files",   "*.M4A"),
+                            ("OPUS files",  "*.opus"),
+                            ]
+                kwargs["filetypes"] = selection  # type: ignore[arg-type]
             elif filetypes == 'image':
                 selection = cast(Sequence[Tuple[str, str]],
                                  [
@@ -167,12 +166,12 @@ class RacoonMediaTools:
                                     ("PNG files",   "*.PNG"),
                                     ("JPEG files",   "*.JPEG")
                                  ])
-                kwargs["filetypes"] = selection
+                kwargs["filetypes"] = selection  # type: ignore[arg-type]
             else:
-                kwargs["filetypes"] = filetypes
+                kwargs["filetypes"] = filetypes  # type: ignore[arg-type]
 
         file_paths = root.tk.splitlist(
-            filedialog.askopenfilenames(**kwargs)
+            filedialog.askopenfilenames(**kwargs)  # type: ignore[arg-type]
         )
         root.destroy()
 
@@ -390,7 +389,7 @@ class RacoonMediaTools:
 
     def makeAlbum(self, final_filename: str, output_path: str or None = None):
         init(autoreset=True)
-        TEST = True
+        TEST = False
 
         if output_path is None:
             output_path = self.sound_input_paths[0].parent
@@ -400,6 +399,7 @@ class RacoonMediaTools:
         def concad_audio(audio_paths: list[Path]):
             convertion_sufix = '.flac'
             final_concad_file_path = Path.joinpath(output_path, final_filename).with_suffix(convertion_sufix)
+            final_mp4_file_path = Path(f'{output_path}\\{final_filename}.mp4')
 
             # Temp audio paths like output_path//"audio1.flac"
             temp_audio_paths = []
@@ -411,7 +411,6 @@ class RacoonMediaTools:
                 for audio_path in audio_paths:
                     print(audio_path)
 
-
             #Convert every audio input to the temp audio file
             for index in range(len(audio_paths)):
                 audio_path = audio_paths[index]
@@ -421,15 +420,18 @@ class RacoonMediaTools:
                       f'Converting {Fore.LIGHTYELLOW_EX}"{audio_path.name}"{Fore.RESET} '
                       f'to {convertion_sufix}...  '
                       f'{Fore.LIGHTGREEN_EX}({index+1}/{len(audio_paths)}){Fore.RESET}')
-
-                ffmpegOutput_converter = sp.run(f'ffmpeg '
-                                                f'-loglevel fatal '
-                                                f'-y '
-                                                f'-i "{audio_path}" '
-                                                f'-c:a flac '
-                                                f'"{temp_audio_path}"',
-                                                shell=True, capture_output=False)
-
+                try:
+                    ffmpegOutput_converter = sp.run(f'ffmpeg '
+                                                    f'-loglevel fatal '
+                                                    f'-y '
+                                                    f'-i "{audio_path}" '
+                                                    f'-c:a flac '
+                                                    f'"{temp_audio_path}"',
+                                                    shell=True, capture_output=False)
+                    if ffmpegOutput_converter.returncode != 0:
+                        raise RacoonErrors.FfmpegGeneralError('Something went to shit')
+                except RacoonErrors.FfmpegGeneralError:
+                    RacoonMediaTools.askExit("Something went wrong while converting audio input into flac")
             try:
                 with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
                     for temp_audio_path in temp_audio_paths:
@@ -447,16 +449,18 @@ class RacoonMediaTools:
                                              f'-safe 0 '
                                              f'-i "{Path.joinpath(output_path, 'audio_input_list.txt')}" '
                                              f'-c:a flac '
-                                             f'"{final_concad_file_path}"'
-                                             , capture_output=True)
+                                             f'"{final_concad_file_path}"',
+                                             capture_output=True)
                 if ffmpegOutput_concad.returncode != 0:
                     raise RacoonErrors.FfmpegConcadError('something went to shit')
 
             except RacoonErrors.FfmpegConcadError:
                 print(ffmpegOutput_concad)
-                RacoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} {Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
+                RacoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} '
+                                         f'{Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
+                print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} '
+                      f'{Fore.GREEN}Done!{Fore.RESET} ')
 
             # Get times
 
@@ -467,10 +471,15 @@ class RacoonMediaTools:
                     oryginal_audios_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
                 oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audios_durations)
             except (Exception,):
-                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Pre concad added files duration: '
+                      f'{Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {oryginal_audios_duration}')
-            # Duration list after converting to flac
+                print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Pre concad added files duration: '
+                      f'{Fore.LIGHTYELLOW_EX}{oryginal_audios_duration}{Fore.RESET}')
+
+            # Duration list AFTER converting to flac
             try:
                 converted_durations = []
                 for path in temp_audio_paths:
@@ -479,32 +488,47 @@ class RacoonMediaTools:
                 converted_duration = RacoonMediaTools.add_times(converted_durations)
 
             except (Exception,):
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Post concad added files duration: '
+                      f'{Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {converted_duration}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Post concad added files duration: '
+                      f'{Fore.LIGHTYELLOW_EX}{converted_duration}{Fore.RESET}')
 
-            # Duration of the output file
+            # Duration of the output .flac file
             try:
-                final_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+                final_flac_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
             except (Exception,):
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Final file duration: {Fore.RED}ERROR{Fore.RESET}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Final file duration: '
+                      f'{Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Final file duration: {final_duration}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Final file duration: '
+                      f'{Fore.LIGHTYELLOW_EX}{final_flac_duration}{Fore.RESET}')
 
             try:
-                convertionDifference = RacoonMediaTools.seconds_to_hhmmss(RacoonMediaTools.hhmmss_to_seconds(final_duration) - RacoonMediaTools.hhmmss_to_seconds(oryginal_audios_duration))
+                convertionDifference = RacoonMediaTools.hhmmss_to_seconds(final_flac_duration) - RacoonMediaTools.hhmmss_to_seconds(oryginal_audios_duration)
             except (Exception,):
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Duration difference (converted - oryginal): {Fore.RED}ERROR{Fore.RESET}')
+                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                      f'Duration difference (converted - oryginal): '
+                      f'{Fore.RED}ERROR{Fore.RESET}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Duration difference (converted - oryginal): {convertionDifference}')
-
+                if 1.000 > convertionDifference > -1.000:
+                    print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                          f'Duration difference (converted - oryginal): '
+                          f'{Fore.LIGHTGREEN_EX}{RacoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
+                else:
+                    print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
+                          f'Duration difference (converted - oryginal): '
+                          f'{Fore.RED}{RacoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
 
             # Remove temp audio files from disc
             if not TEST:
                 Path.joinpath(output_path, 'audio_input_list.txt').unlink()
                 for path in temp_audio_paths:
                     path.unlink()
-
 
             # Make the final .mp4 video
             print(f'\n{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Making video...')
@@ -515,7 +539,7 @@ class RacoonMediaTools:
                                           f'-loop 1 '
                                           f'-framerate 1 '
                                           f'-i "{self.image_input_path}" '
-                                          f'-i "{output_path}\\{final_filename}.flac" '
+                                          f'-i "{final_concad_file_path}" '
                                           f'-c:v libx264 '
                                           f'-tune stillimage '
                                           f'-c:a aac '
@@ -524,7 +548,7 @@ class RacoonMediaTools:
                                           f'-movflags +faststart '
                                           f'-vf "format=yuv420p" '
                                           f'-r 1 '
-                                          f'"{output_path}\\{final_filename}.mp4"',
+                                          f'"{final_mp4_file_path}"',
                                           shell=True, capture_output=False)
                 if ffmpegOutput_vid.returncode != 0:
                     raise RacoonErrors.FfmpegGeneralError('something went to shit')
@@ -539,7 +563,7 @@ class RacoonMediaTools:
                                               f'-loop 1 '
                                               f'-framerate 1 '
                                               f'-i "{self.image_input_path}" '
-                                              f'-i "{output_path}\\{final_filename}.flac" '
+                                              f'-i "{final_concad_file_path}" '
                                               f'-c:v libx264 '
                                               f'-tune stillimage '
                                               f'-c:a copy '
@@ -547,7 +571,7 @@ class RacoonMediaTools:
                                               f'-movflags +faststart '
                                               f'-vf "format=yuv420p" '
                                               f'-r 1 '
-                                              f'"{output_path}\\{final_filename}.mp4"',
+                                              f'"{ofinal_mp4_file_path}"',
                                               shell=True, capture_output=False)
                     if ffmpegOutput_vid.returncode != 0:
                         raise RacoonErrors.FfmpegGeneralError('something went to shit')
@@ -555,12 +579,10 @@ class RacoonMediaTools:
                     RacoonMediaTools.askExit(f'Yeah something went to *shit shit* while creating the final video\n'
                                              f'Maybe try  again?')
                 else:
-                    print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
+                    print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} '
+                          f'{Fore.GREEN}Done!{Fore.RESET}')
             else:
-                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
-
-
-
+                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} '
+                      f'{Fore.GREEN}Done!{Fore.RESET}')
 
         concad_audio(self.sound_input_paths)
-

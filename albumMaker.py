@@ -9,17 +9,11 @@ import os
 
 
 def resource_path(relative_path):
-
-	try:
-		base_path = sys._MEIPASS  # PyInstaller creates _MEIPASS temp dir
-	except (Exception,):
-		base_path = os.path.abspath(".")
-
+	base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
 	return os.path.join(base_path, relative_path)
 
 
-
-if __name__ == "__main__":
+def main():
 	test = False
 	if test:
 		imageInputPath = Path('Test_Source\\clipboard__square.png')
@@ -34,15 +28,15 @@ if __name__ == "__main__":
 	else:
 		try:
 			selection = [
-					 ("All without images", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus *.webm *.mp4 *.mov *.avi *.wmv"),
-					 ("MP3 files", "*.MP3"),
-					 ("AAC files", "*.AAC"),
-					 ("FLAC files", "*.FLAC"),
-					 ("WAV files", "*.WAV"),
-					 ("PCM files", "*.PCM"),
-					 ("M4A files", "*.M4A"),
-					 ("OPUS files", "*.opus"),
-					 ("Video files", "*.webm *.mp4 *.mov *.avi *.wmv")
+				("All without images", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus *.webm *.mp4 *.mov *.avi *.wmv"),
+				("MP3 files", "*.MP3"),
+				("AAC files", "*.AAC"),
+				("FLAC files", "*.FLAC"),
+				("WAV files", "*.WAV"),
+				("PCM files", "*.PCM"),
+				("M4A files", "*.M4A"),
+				("OPUS files", "*.opus"),
+				("Video files", "*.webm *.mp4 *.mov *.avi *.wmv")
 			]
 			soundInputPaths = Ru.winFilesPath('Pick songs', filetypes=selection)
 		except RuE.MissingInputError:
@@ -77,3 +71,7 @@ if __name__ == "__main__":
 	playsound(sound_file)
 
 	sys.exit(0)
+
+
+if __name__ == "__main__":
+	main()
