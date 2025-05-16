@@ -390,7 +390,7 @@ class RacoonMediaTools:
 
     def makeAlbum(self, output_path: str or None, final_filename: str):
         init(autoreset=True)
-        TEST = False
+        TEST = True
 
         if output_path is None:
             output_path = self.sound_input_paths[0].parent
@@ -411,9 +411,6 @@ class RacoonMediaTools:
                 for audio_path in audio_paths:
                     print(audio_path)
 
-                print(oryginal_audio_durations)
-
-                print(temp_audio_paths)
 
             #Convert every audio input to the temp audio file
             for index in range(len(audio_paths)):
@@ -426,17 +423,19 @@ class RacoonMediaTools:
                       f'{Fore.LIGHTGREEN_EX}({index+1}/{len(audio_paths)}){Fore.RESET}')
 
                 ffmpegOutput_converter = sp.run(f'ffmpeg '
-                                        f'-loglevel fatal '
-                                        f'-y '
-                                        f'-i "{audio_path}" '
-                                        f'-c:a flac '
-                                        f'"{temp_audio_path}"',
-                                        shell=True, capture_output=False)
+                                                f'-loglevel fatal '
+                                                f'-y '
+                                                f'-i "{audio_path}" '
+                                                f'-c:a flac '
+                                                f'"{temp_audio_path}"',
+                                                shell=True, capture_output=False)
 
-
-            with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
-                for temp_audio_path in temp_audio_paths:
-                    audio_input_list.write(f"file '{str(temp_audio_path)}'\n")
+            try:
+                with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
+                    for temp_audio_path in temp_audio_paths:
+                        audio_input_list.write(f"file '{str(temp_audio_path)}'\n")
+            except (Exception,):
+                RacoonMediaTools.askExit(f'{Fore.RED}Something went wrong while creating and writing the audio list!{Fore.RES}\n')
 
             # Concad audio files
             print(f'\n{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} Concading audio files into one...  ')
@@ -471,7 +470,7 @@ class RacoonMediaTools:
                 print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {Fore.RED}ERROR{Fore.RESET}')
             else:
                 print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Pre concad added files duration: {oryginal_audios_duration}')
-
+            # Duration list after converting to flac
             try:
                 converted_durations = []
                 for path in temp_audio_paths:
@@ -484,6 +483,7 @@ class RacoonMediaTools:
             else:
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} Post concad added files duration: {converted_duration}')
 
+            # Duration of the output file
             try:
                 final_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
             except (Exception,):
@@ -505,6 +505,8 @@ class RacoonMediaTools:
                 for path in temp_audio_paths:
                     path.unlink()
 
+
+            # Make the final .mp4 video
             print(f'\n{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Making video...')
             try:
                 ffmpegOutput_vid = sp.run(f'ffmpeg '
@@ -526,30 +528,37 @@ class RacoonMediaTools:
                                           shell=True, capture_output=False)
                 if ffmpegOutput_vid.returncode != 0:
                     raise RacoonErrors.FfmpegGeneralError('something went to shit')
-                print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
 
             except RacoonErrors.FfmpegGeneralError:
                 print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} {Fore.RED}Something went wrong while making the video!{Style.RESET_ALL}')
                 print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Trying without re-encoding the audio...')
-
-                ffmpegOutput_vid = sp.run(f'ffmpeg '
-                                          f'-loglevel fatal '
-                                          f'-y '
-                                          f'-loop 1 '
-                                          f'-framerate 1 '
-                                          f'-i "{self.image_input_path}" '
-                                          f'-i "{output_path}\\{final_filename}.flac" '
-                                          f'-c:v libx264 '
-                                          f'-tune stillimage '
-                                          f'-c:a copy '
-                                          f'-t {converted_duration} '
-                                          f'-movflags +faststart '
-                                          f'-vf "format=yuv420p" '
-                                          f'-r 1 '
-                                          f'"{output_path}\\{final_filename}.mp4"',
-                                          shell=True, capture_output=False)
-
+                try:
+                    ffmpegOutput_vid = sp.run(f'ffmpeg '
+                                              f'-loglevel fatal '
+                                              f'-y '
+                                              f'-loop 1 '
+                                              f'-framerate 1 '
+                                              f'-i "{self.image_input_path}" '
+                                              f'-i "{output_path}\\{final_filename}.flac" '
+                                              f'-c:v libx264 '
+                                              f'-tune stillimage '
+                                              f'-c:a copy '
+                                              f'-t {converted_duration} '
+                                              f'-movflags +faststart '
+                                              f'-vf "format=yuv420p" '
+                                              f'-r 1 '
+                                              f'"{output_path}\\{final_filename}.mp4"',
+                                              shell=True, capture_output=False)
+                    if ffmpegOutput_vid.returncode != 0:
+                        raise RacoonErrors.FfmpegGeneralError('something went to shit')
+                except RacoonErrors.FfmpegGeneralError:
+                    RacoonMediaTools.askExit(f'Yeah something went to *shit shit* while creating the final video\n'
+                                             f'Maybe try  again?')
+                else:
+                    print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
+            else:
                 print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} {Fore.GREEN}Done!{Fore.RESET} ')
+
 
 
 
