@@ -69,6 +69,7 @@ if __name__ == "__main__":
 			if albumName.find('[]') != -1:
 				albumName = albumName.replace('[]', workingFolderName)
 			print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Name chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}')
+	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTGREEN_EX}"{albumName}"{Fore.RESET}')
 
 	outputPath = None
 
