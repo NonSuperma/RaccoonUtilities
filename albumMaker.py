@@ -68,13 +68,10 @@ if __name__ == "__main__":
 			albumName = userChoice + ' [Full Album]'
 			if albumName.find('[]') != -1:
 				albumName = albumName.replace('[]', workingFolderName)
-			print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Name chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}')
-	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTGREEN_EX}"{albumName}"{Fore.RESET}')
-
-	outputPath = None
+	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}')
 
 	album = Ru(imageInputPath, soundInputPaths)
-	album.makeAlbum(outputPath, albumName)
+	album.makeAlbum(albumName)
 
 	sound_file = str(resource_path('au5-1.mp3'))
 	playsound(sound_file)
