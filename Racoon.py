@@ -284,7 +284,7 @@ class RacoonMediaTools:
             dimentions = [int(dimention) for dimention in dimentions]
         return dimentions
 
-    def makeVideo(self, output_path: Optional[Path], lenght_check: BooleanVar, pure_audio: BooleanVar):
+    def makeVideo(self, output_path: Optional[Path] = None, lenght_check: BooleanVar = False, pure_audio: BooleanVar = False):
         init(autoreset=True)
         image_input_path: Path = self.image_input_path
         if image_input_path == "":
@@ -388,7 +388,7 @@ class RacoonMediaTools:
 
             return ffmpegOutput
 
-    def makeAlbum(self, output_path: str or None, final_filename: str):
+    def makeAlbum(self, final_filename: str, output_path: str or None = None):
         init(autoreset=True)
         TEST = True
 
