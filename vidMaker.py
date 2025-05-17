@@ -11,36 +11,41 @@ import ctypes
 import os
 
 
-def resource_path(relative_path: str):
-	base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+def resource_path(relative_path):
+	base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+	return Path.joinpath(base_path, relative_path)
 
-	return os.path.join(base_path, relative_path)
+
+def play_success_sound() -> None:
+	sound_file = resource_path('au5-1.mp3')
+	playsound(sound_file)
 
 
-if __name__ == "__main__":
+def main():
 	init(autoreset=True)
+
 	try:
 		imageInputPath = Ru.winFilePath("Album cover")
 	except RuE.MissingInputError:
-		Ru.askExit('No input image')
+		Ru.askExit(f'{Fore.RED}No input image!{Fore.RESET}')
 
 	try:
 		soundInputPaths = Ru.winFilesPath("Audio files")
 	except RuE.MissingInputError:
-		Ru.askExit('No input sounds')
+		Ru.askExit(f'{Fore.RED}No input sounds!{Fore.RESET}')
 
-	outputPath = None
 	vid = Ru(imageInputPath, soundInputPaths)
+
 	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Making video...')
-	vid.makeVideo(outputPath, lenght_check=False, pure_audio=False	)
+	vid.makeVideo()
 	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Done!')
-	#for path in soundInputPaths:
+
+	# for path in soundInputPaths:
 	#	sp.run(f'del "{path}"', shell=True)
-	#sp.run(f'del "{imageInputPath}"', shell=True)
+	# sp.run(f'del "{imageInputPath}"', shell=True)
 
 
-
-	sound_file = resource_path('au5-1.mp3')
-	playsound(sound_file)
+if __name__ == "__main__":
+	main()
+	play_success_sound()
 	sys.exit(0)
-

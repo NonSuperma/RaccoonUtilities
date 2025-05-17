@@ -5,7 +5,6 @@ from Racoon import RacoonMediaTools as Ru
 from pathlib import Path
 
 
-
 def convertFiles(songs: list[str]):
 	songsCount = len(songs)
 

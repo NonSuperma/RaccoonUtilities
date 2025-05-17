@@ -63,10 +63,12 @@ class RacoonMediaTools:
     @staticmethod
     def add_times(time_list: list[str] or list[float]) -> str:
         total = 0
-        format = 's' if time_list is list[str] else ''
+        _format = 's' if time_list is list[str] else 'hh'
         for t in time_list:
-
-            total += RacoonMediaTools.hhmmss_to_seconds(t)
+            if _format == 's':
+                total += t
+            else:
+                total += RacoonMediaTools.hhmmss_to_seconds(t)
         return RacoonMediaTools.seconds_to_hhmmss(total)
 
     @staticmethod
@@ -283,31 +285,25 @@ class RacoonMediaTools:
             dimentions = [int(dimention) for dimention in dimentions]
         return dimentions
 
-    def makeVideo(self, output_path: Optional[Path] = None, lenght_check: BooleanVar = False, pure_audio: BooleanVar = False):
+    def makeVideo(self, output_path: Optional[Path] = None, lenght_check: bool = False, pure_audio: bool = False):
         init(autoreset=True)
-        image_input_path: Path = self.image_input_path
-        if image_input_path == "":
-            raise RacoonErrors.MissingInputError("No album cover selected")
-        sound_input_paths: list[Path] = self.sound_input_paths
-        if sound_input_paths == "":
-            raise RacoonErrors.MissingInputError("No audio/s selected")
 
         if output_path is None:
-            output_path = sound_input_paths[0].parent
+            output_path = self.sound_input_paths[0].parent
 
-        if len(sound_input_paths) == 1:
-            sound_input_paths: Path = Path(sound_input_paths[0])
-            name = sound_input_paths.stem
+        if len(self.sound_input_paths) == 1:
+            sound_input_path: Path = self.sound_input_paths[0]
+            name = sound_input_path.stem
 
-            duration = RacoonMediaTools.getAudioDuration(sound_input_paths)
+            duration = RacoonMediaTools.getAudioDuration(sound_input_path)
             if pure_audio:
                 ffmpegOutput = sp.run(f'ffmpeg '
-                                      # f'-loglevel fatal '
+                                      f'-loglevel fatal '
                                       f'-y '
                                       f'-loop 1 '
                                       f'-framerate 1 '
-                                      f'-i "{image_input_path}" '
-                                      f'-i "{sound_input_paths}" '
+                                      f'-i "{self.image_input_path}" '
+                                      f'-i "{sound_input_path}" '
                                       f'-c:v libx264 '
                                       f'-tune stillimage '
                                       f'-c:a copy '
@@ -320,12 +316,12 @@ class RacoonMediaTools:
 
             else:
                 ffmpegOutput = sp.run(f'ffmpeg '
-                                      # f'-loglevel fatal '
+                                      f'-loglevel fatal '
                                       f'-y '
                                       f'-loop 1 '
                                       f'-framerate 1 '
-                                      f'-i "{image_input_path}" '
-                                      f'-i "{sound_input_paths}" '
+                                      f'-i "{self.image_input_path}" '
+                                      f'-i "{sound_input_path}" '
                                       f'-c:v libx264 '
                                       f'-tune stillimage '
                                       f'-c:a aac '
@@ -337,30 +333,30 @@ class RacoonMediaTools:
                                       shell=True, capture_output=False)
 
             if lenght_check:
-                oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_paths)
+                oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_path)
                 converterDuration = RacoonMediaTools.getAudioDuration(Path(f'{output_path}\\{name}.mp4'))
                 if oryginalDuration != converterDuration:
-                    temp_path = sound_input_paths.stem + "_temp" + sound_input_paths.suffix
+                    temp_path = sound_input_path.stem + "_temp" + sound_input_path.suffix
                     sp.run(
-                        f'ffmpeg -y -ss 00:00:00 -to {oryginalDuration} -i "{sound_input_paths}" -c copy "{temp_path}"',
+                        f'ffmpeg -y -ss 00:00:00 -to {oryginalDuration} -i "{sound_input_path}" -c copy "{temp_path}"',
                         shell=True)
-                    os.replace(temp_path, sound_input_paths)
+                    os.replace(temp_path, sound_input_path)
             return ffmpegOutput
 
         else:
             paths_to_file_no_extension = []
-            for INDEX in range(0, len(sound_input_paths)):
-                paths_to_file_no_extension.append(sound_input_paths[INDEX].stem)
+            for INDEX in range(0, len(self.sound_input_paths)):
+                paths_to_file_no_extension.append(self.sound_input_paths[INDEX].stem)
 
             for INDEX in range(len(paths_to_file_no_extension)):
                 ffmpegOutput = []
                 ffmpegOutputPart = sp.run(
                     f'ffmpeg '
                     f'-y '
-                    # f'-loglevel warning '
+                    f'-loglevel warning '
                     f'-loop 1 '
-                    f'-i "{image_input_path}" '
-                    f'-i "{sound_input_paths[INDEX]}" '
+                    f'-i "{self.image_input_path}" '
+                    f'-i "{self.sound_input_paths[INDEX]}" '
                     f'-c:v libx264 '
                     f'-tune stillimage '
                     f'-c:a aac '
@@ -373,21 +369,21 @@ class RacoonMediaTools:
                     shell=True)
 
                 if lenght_check:
-                    oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_paths[INDEX])
+                    oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_path[INDEX])
                     converterDuration = RacoonMediaTools.getAudioDuration(
                         Path.joinpath(output_path, paths_to_file_no_extension[INDEX]).with_suffix('.mp4'))
 
                     if oryginalDuration != converterDuration:
-                        temp_path = sound_input_paths[INDEX].stem + "_temp" + sound_input_paths[INDEX].suffix
+                        temp_path = sound_input_path[INDEX].stem + "_temp" + sound_input_path[INDEX].suffix
                         sp.run(
-                            f'ffmpeg -y -ss 00:00:00 -to {oryginalDuration} -i "{sound_input_paths[INDEX]}" -c copy "{temp_path}"',
+                            f'ffmpeg -y -ss 00:00:00 -to {oryginalDuration} -i "{sound_input_path[INDEX]}" -c copy "{temp_path}"',
                             shell=True)
-                        os.replace(temp_path, sound_input_paths[INDEX])
+                        os.replace(temp_path, sound_input_path[INDEX])
                     ffmpegOutput.append(ffmpegOutputPart)
 
             return ffmpegOutput
 
-    def makeAlbum(self, final_filename: str, output_path: str or None = None):
+    def makeAlbum(self, final_filename: str, output_path: Optional[Path] or None = None):
         init(autoreset=True)
         TEST = False
 

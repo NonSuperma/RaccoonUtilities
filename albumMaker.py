@@ -10,10 +10,17 @@ import os
 
 def resource_path(relative_path):
 	base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
-	return os.path.join(base_path, relative_path)
+	return Path.joinpath(base_path, relative_path)
+
+
+def play_success_sound() -> None:
+	sound_file = resource_path('au5-1.mp3')
+	playsound(sound_file)
 
 
 def main():
+	init(autoreset=True)
+
 	test = False
 	if test:
 		imageInputPath = Path('Test_Source\\clipboard__square.png')
@@ -67,11 +74,8 @@ def main():
 	album = Ru(imageInputPath, soundInputPaths)
 	album.makeAlbum(albumName)
 
-	sound_file = str(resource_path('au5-1.mp3'))
-	playsound(sound_file)
-
-	sys.exit(0)
-
 
 if __name__ == "__main__":
 	main()
+	play_success_sound()
+	sys.exit(0)
