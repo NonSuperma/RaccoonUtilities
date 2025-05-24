@@ -183,7 +183,7 @@ class RacoonMediaTools:
         return [Path(p) for p in file_paths]
 
     @staticmethod
-    def getBitrate(sound_input_path: Path) -> dict[str, int] or None:
+    def get_bitrate(sound_input_path: Path) -> dict[str, int] or None:
         if sound_input_path is list:
             sound_input_path = sound_input_path[0]
 
@@ -215,7 +215,7 @@ class RacoonMediaTools:
         return output
 
     @staticmethod
-    def getAudioEncoding(file_path: Path) -> str or None:
+    def get_audio_encoding(file_path: Path) -> str or None:
         if isinstance(file_path, list):
             file_path = file_path[0]
         extensions = ['.png', '.jpg', '.jpeg', '.webp']
@@ -228,7 +228,7 @@ class RacoonMediaTools:
         return ffprobeOutput.stdout.decode().strip()
 
     @staticmethod
-    def getAudioDuration(file_path: Path) -> str or None:
+    def get_audio_duration(file_path: Path) -> str or None:
 
         ffprobeOutput = sp.run(
             f'ffprobe '
@@ -276,7 +276,7 @@ class RacoonMediaTools:
     @staticmethod
     def get_media_dimentions(file_path) -> list[str] or None:
         ffprobeOutput = sp.run(
-            f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 {file_path}',
+            f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "{file_path}"',
             shell=True, capture_output=True)
         if ffprobeOutput.returncode != 0:
             return None
@@ -285,7 +285,42 @@ class RacoonMediaTools:
             dimentions = [int(dimention) for dimention in dimentions]
         return dimentions
 
-    def makeVideo(self, output_path: Optional[Path] = None, lenght_check: bool = False, pure_audio: bool = False):
+    @staticmethod
+    def scale_image(file_path: Path, new_dimentions: str, remove_old=False) -> None:
+        new_name = str(file_path.stem) + f'__{new_dimentions.replace(':', 'x')}{str(file_path.suffix)}'
+        new_file_path = Path(file_path.parent / new_name)
+
+        ffmpegOutput = sp.run(f'ffmpeg '
+                              f'-loglevel fatal '
+                              f'-y '
+                              f'-i "{file_path}" '
+                              f'-vf scale={new_dimentions} '
+                              f'-frames:v 1 '
+                              f'-update 1 '
+                              f'"{new_file_path}"')
+        if ffmpegOutput.returncode != 0:
+            raise RacoonErrors.FfmpegGeneralError
+
+        if remove_old:
+            file_path.unlink()
+            new_file_path.rename(file_path)
+
+    @staticmethod
+    def check_scale_uneven_image(file_path: Path) -> None:
+        image_dimentions = RacoonMediaTools.get_media_dimentions(file_path)
+        new_dimentions = []
+        flagged = False
+        for dimention in image_dimentions:
+            if dimention % 2 != 0:
+                flagged = True
+                new_dimentions.append(dimention - 1)
+            else:
+                new_dimentions.append(dimention)
+        if flagged:
+            dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
+            RacoonMediaTools.scale_image(file_path, dimentions, remove_old=True)
+
+    def make_video(self, output_path: Optional[Path] = None, lenght_check: bool = False, pure_audio: bool = False):
         init(autoreset=True)
 
         if output_path is None:
@@ -295,7 +330,7 @@ class RacoonMediaTools:
             sound_input_path: Path = self.sound_input_paths[0]
             name = sound_input_path.stem
 
-            duration = RacoonMediaTools.getAudioDuration(sound_input_path)
+            duration = RacoonMediaTools.get_audio_duration(sound_input_path)
             if pure_audio:
                 ffmpegOutput = sp.run(f'ffmpeg '
                                       f'-loglevel fatal '
@@ -333,8 +368,8 @@ class RacoonMediaTools:
                                       shell=True, capture_output=False)
 
             if lenght_check:
-                oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_path)
-                converterDuration = RacoonMediaTools.getAudioDuration(Path(f'{output_path}\\{name}.mp4'))
+                oryginalDuration = RacoonMediaTools.get_audio_duration(sound_input_path)
+                converterDuration = RacoonMediaTools.get_audio_duration(Path(f'{output_path}\\{name}.mp4'))
                 if oryginalDuration != converterDuration:
                     temp_path = sound_input_path.stem + "_temp" + sound_input_path.suffix
                     sp.run(
@@ -369,8 +404,8 @@ class RacoonMediaTools:
                     shell=True)
 
                 if lenght_check:
-                    oryginalDuration = RacoonMediaTools.getAudioDuration(sound_input_path[INDEX])
-                    converterDuration = RacoonMediaTools.getAudioDuration(
+                    oryginalDuration = RacoonMediaTools.get_audio_duration(sound_input_path[INDEX])
+                    converterDuration = RacoonMediaTools.get_audio_duration(
                         Path.joinpath(output_path, paths_to_file_no_extension[INDEX]).with_suffix('.mp4'))
 
                     if oryginalDuration != converterDuration:
@@ -383,7 +418,7 @@ class RacoonMediaTools:
 
             return ffmpegOutput
 
-    def makeAlbum(self, final_filename: str, output_path: Optional[Path] or None = None):
+    def make_album(self, final_filename: str, output_path: Optional[Path] or None = None):
         init(autoreset=True)
         TEST = False
 
@@ -396,6 +431,9 @@ class RacoonMediaTools:
             convertion_sufix = '.flac'
             final_concad_file_path = Path.joinpath(output_path, final_filename).with_suffix(convertion_sufix)
             final_mp4_file_path = Path(f'{output_path}\\{final_filename}.mp4')
+
+            #check for uneven image input dimentions and scale if yes
+            RacoonMediaTools.check_scale_uneven_image(self.image_input_path)
 
             # Temp audio paths like output_path//"audio1.flac"
             temp_audio_paths = []
@@ -464,7 +502,7 @@ class RacoonMediaTools:
             try:
                 oryginal_audios_durations = []
                 for audio_path in audio_paths:
-                    oryginal_audios_durations.append(RacoonMediaTools.getAudioDuration(audio_path))
+                    oryginal_audios_durations.append(RacoonMediaTools.get_audio_duration(audio_path))
                 oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audios_durations)
             except (Exception,):
                 print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
@@ -479,7 +517,7 @@ class RacoonMediaTools:
             try:
                 converted_durations = []
                 for path in temp_audio_paths:
-                    converted_durations.append(RacoonMediaTools.getAudioDuration(path))
+                    converted_durations.append(RacoonMediaTools.get_audio_duration(path))
 
                 converted_duration = RacoonMediaTools.add_times(converted_durations)
 
@@ -494,7 +532,7 @@ class RacoonMediaTools:
 
             # Duration of the output .flac file
             try:
-                final_flac_duration = RacoonMediaTools.getAudioDuration(final_concad_file_path)
+                final_flac_duration = RacoonMediaTools.get_audio_duration(final_concad_file_path)
             except (Exception,):
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                       f'Final file duration: '
