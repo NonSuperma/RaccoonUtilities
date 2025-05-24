@@ -26,7 +26,7 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 	albumData = RacoonMT(image_path, audio_paths)
 	# albumData.makeVideo(f'{directoryPath}\\.mp4')
-	albumData.makeAlbum(directoryPath, album_name)
+	albumData.make_album(directoryPath, album_name)
 
 	for songPath in audio_paths:
 		sp.run(f'move "{songPath}" "{directoryPath}\\{audioFolder}"', shell=True)

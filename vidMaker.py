@@ -37,7 +37,7 @@ def main():
 	vid = Ru(imageInputPath, soundInputPaths)
 
 	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Making video...')
-	vid.makeVideo()
+	vid.make_video()
 	print(f'{Fore.LIGHTCYAN_EX}[Converter]{Fore.RESET} Done!')
 
 	# for path in soundInputPaths:

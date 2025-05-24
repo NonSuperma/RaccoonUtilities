@@ -72,7 +72,7 @@ def main():
 	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}')
 
 	album = Ru(imageInputPath, soundInputPaths)
-	album.makeAlbum(albumName)
+	album.make_album(albumName)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ def convertFiles(songs: list[str]):
 	def convert(name: Path, newExtension):
 		if name.suffix != extension:
 			emptyName = Path.joinpath(name.parent, name.stem)
-			bitrate = Ru.getBitrate(name)
+			bitrate = Ru.get_bitrate(name)
 
 			if bitrate is None:
 				if newExtension == '.ico':
@@ -50,7 +50,7 @@ def convertFiles(songs: list[str]):
 			else:
 
 
-				print(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"')
+				print(f'ffmpeg -i "{name}" -b:a {list(Ru.get_bitrate(name).values())[0]} "{emptyName}{newExtension}"')
 				# sp.run(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"', shell=True)
 				sp.run(f'ffmpeg -y -i "{name}" -b:a 270k "{emptyName}{newExtension}"',
 					   shell=True)
