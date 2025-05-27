@@ -306,7 +306,25 @@ class RacoonMediaTools:
             new_file_path.rename(file_path)
 
     @staticmethod
-    def check_scale_uneven_image(file_path: Path) -> None:
+    def check_scale_to_UNeven_dimentions(file_path: Path, remove_old=True) -> list[int | list]:
+        image_dimentions = RacoonMediaTools.get_media_dimentions(file_path)
+        new_dimentions = []
+        flagged = False
+        for dimention in image_dimentions:
+            if dimention % 2 == 0:
+                flagged = True
+                new_dimentions.append(dimention - 1)
+            else:
+                new_dimentions.append(dimention)
+        if flagged:
+            dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
+            RacoonMediaTools.scale_image(file_path, dimentions, remove_old)
+            return [1, new_dimentions]
+        else:
+            return [0, image_dimentions]
+
+    @staticmethod
+    def check_scale_to_even_dimentions(file_path: Path, remove_old=True) -> list[int | list]:
         image_dimentions = RacoonMediaTools.get_media_dimentions(file_path)
         new_dimentions = []
         flagged = False
@@ -318,7 +336,10 @@ class RacoonMediaTools:
                 new_dimentions.append(dimention)
         if flagged:
             dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
-            RacoonMediaTools.scale_image(file_path, dimentions, remove_old=True)
+            RacoonMediaTools.scale_image(file_path, dimentions, remove_old)
+            return [1, new_dimentions]
+        else:
+            return [0, image_dimentions]
 
     def make_video(self, output_path: Optional[Path] = None, lenght_check: bool = False, pure_audio: bool = False):
         init(autoreset=True)
@@ -433,7 +454,26 @@ class RacoonMediaTools:
             final_mp4_file_path = Path(f'{output_path}\\{final_filename}.mp4')
 
             #check for uneven image input dimentions and scale if yes
-            RacoonMediaTools.check_scale_uneven_image(self.image_input_path)
+            print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
+                  f'Checking {Fore.LIGHTYELLOW_EX}"{self.image_input_path.name}"{Fore.RESET} '
+                  f'for uneven image dimentions...')
+            oryginal_dimentions = RacoonMediaTools.get_media_dimentions(self.image_input_path)
+            try:
+                ffmpegOutput = RacoonMediaTools.check_scale_to_even_dimentions(self.image_input_path)
+                if ffmpegOutput[0] == 1:
+                    print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
+                          f'Scaled {Fore.LIGHTYELLOW_EX}"{self.image_input_path.name}"{Fore.RESET} '
+                          f'from ({oryginal_dimentions[0]}:{oryginal_dimentions[1]}) '
+                          f'to even '
+                          f'({ffmpegOutput[1][0]}:{ffmpegOutput[1][1]}) '
+                          f'dimentions!')
+                else:
+                    print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
+                          f'Dimentions are even!')
+            except RacoonErrors.FfmpegGeneralError:
+                RacoonMediaTools.askExit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
+                                         f'Ffmpeg needs even dimentions to work\n'
+                                         f'Try manually changing the dimentions to be even and then try again')
 
             # Temp audio paths like output_path//"audio1.flac"
             temp_audio_paths = []
