@@ -56,20 +56,35 @@ def main():
 		albumName = 'TEST'
 	else:
 		userChoice = input(
-			f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} The selected songs are in a folder called {Fore.GREEN}"{workingFolderName}"{Fore.RESET}\n'
+			f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} The selected songs are in a folder called {Fore.GREEN}{workingFolderName}{Fore.RESET}\n'
 			f'       Press {Back.BLACK}ENTER{Back.RESET} to use that folder as the album name, or input the album name manually\n'
-			f'       "[]" gets converted into {Fore.GREEN}"{workingFolderName}"{Fore.RESET} no matter where it is in the input: \n'
-			f'       '
+			f'       {Fore.LIGHTBLUE_EX}[]{Fore.RESET} gets converted into {Fore.GREEN}{workingFolderName}{Fore.RESET}\n'
+			f'       {Fore.LIGHTBLUE_EX}--full{Fore.RESET} removes {Fore.LIGHTBLUE_EX}[Full Album]{Fore.RESET} from the final name\n'
+			f'       : '
 		)
 
 		if userChoice == '':
 			albumName = workingFolderName + ' [Full Album]'
+		elif userChoice == '--full':
+			albumName = workingFolderName
 
 		else:
-			albumName = userChoice + ' [Full Album]'
+			albumName = userChoice
+
 			if albumName.find('[]') != -1:
 				albumName = albumName.replace('[]', workingFolderName)
-	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}')
+
+			if albumName.find('--full') != -1:
+				if albumName.find(' --full ') != -1:
+					albumName = albumName.replace(' --full ', '')
+				elif albumName.find(' --full') != -1:
+					albumName = albumName.replace(' --full', '')
+				else:
+					albumName = albumName.replace('--full', '')
+			else:
+				albumName += ' [Full Album]'
+
+	print(f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} Filename chosen: {Fore.LIGHTBLUE_EX}"{albumName}"{Fore.RESET}\n')
 
 	album = Ru(imageInputPath, soundInputPaths)
 	album.make_album(albumName)
@@ -77,5 +92,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
-	play_success_sound()
 	sys.exit(0)
