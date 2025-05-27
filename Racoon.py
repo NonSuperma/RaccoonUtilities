@@ -466,10 +466,10 @@ class RacoonMediaTools:
                           f'from ({oryginal_dimentions[0]}:{oryginal_dimentions[1]}) '
                           f'to even '
                           f'({ffmpegOutput[1][0]}:{ffmpegOutput[1][1]}) '
-                          f'dimentions!')
+                          f'dimentions!\n')
                 else:
                     print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
-                          f'Dimentions are even!')
+                          f'{Fore.LIGHTGREEN_EX}Dimentions are even!\n{Style.RESET_ALL}')
             except RacoonErrors.FfmpegGeneralError:
                 RacoonMediaTools.askExit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
                                          f'Ffmpeg needs even dimentions to work\n'
