@@ -1,7 +1,7 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
-from Racoon import RacoonErrors as RuE
-from Racoon import RacoonMediaTools as Ru
+from racoon import RaccoonErrors as RuE
+from racoon import RaccoonMediaTools as Ru
 from pathlib import Path
 
 

@@ -2,8 +2,8 @@ import configparser
 import subprocess as sp
 import validators
 import win32clipboard
-from Racoon import RacoonMediaTools as Ru
-from Racoon import RacoonErrors as RuE
+from racoon import RaccoonMediaTools as Ru
+from racoon import RaccoonErrors as RuE
 
 
 class Bcolors:

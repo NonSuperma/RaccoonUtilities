@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 
-class RacoonErrors:
+class RaccoonErrors:
     class MissingInputError(Exception):
         def __init__(self, message):
             self.message = message
@@ -33,7 +33,7 @@ class RacoonErrors:
             super().__init__(self.message)
 
 
-class RacoonMediaTools:
+class RaccoonMediaTools:
 
     def __init__(self, image_input_path: Path, sound_input_paths: list[Path]) -> None:
         self.image_input_path: Path = image_input_path
@@ -68,8 +68,8 @@ class RacoonMediaTools:
             if _format == 's':
                 total += t
             else:
-                total += RacoonMediaTools.hhmmss_to_seconds(t)
-        return RacoonMediaTools.seconds_to_hhmmss(total)
+                total += RaccoonMediaTools.hhmmss_to_seconds(t)
+        return RaccoonMediaTools.seconds_to_hhmmss(total)
 
     @staticmethod
     def askExit(message: str) -> None:
@@ -84,13 +84,6 @@ class RacoonMediaTools:
         sys.exit()
 
     @staticmethod
-    def mkFolder(path: Path, folder_name: str) -> None:
-        if Path.exists(path):
-            pass
-
-        os.makedirs(Path.joinpath(path, folder_name), exist_ok=True)
-
-    @staticmethod
     def winDirPath(message: str) -> Path:
         root = Tk()
         root.withdraw()
@@ -98,7 +91,7 @@ class RacoonMediaTools:
 
         file_path = Path(filedialog.askdirectory(title=message, parent=root))
         if not file_path:
-            raise RacoonErrors.MissingInputError('User closed the window')
+            raise RaccoonErrors.MissingInputError('User closed the window')
 
         return file_path
 
@@ -138,7 +131,7 @@ class RacoonMediaTools:
         file_path = Path(file_path_str)
 
         if not file_path_str:
-            raise RacoonErrors.MissingInputError('User closed the window')
+            raise RaccoonErrors.MissingInputError('User closed the window')
 
         return file_path
 
@@ -178,7 +171,7 @@ class RacoonMediaTools:
         root.destroy()
 
         if not file_paths:
-            raise RacoonErrors.MissingInputError("User closed the window")
+            raise RaccoonErrors.MissingInputError("User closed the window")
 
         return [Path(p) for p in file_paths]
 
@@ -240,7 +233,7 @@ class RacoonMediaTools:
             return None
 
         else:
-            return RacoonMediaTools.seconds_to_hhmmss(float(ffprobeOutput.stdout.decode()))
+            return RaccoonMediaTools.seconds_to_hhmmss(float(ffprobeOutput.stdout.decode()))
 
     @staticmethod
     def count_open_windows(process_name: str) -> int or None:
@@ -297,7 +290,7 @@ class RacoonMediaTools:
                               f'-update 1 '
                               f'"{new_file_path}"')
         if ffmpegOutput.returncode != 0:
-            raise RacoonErrors.FfmpegGeneralError
+            raise RaccoonErrors.FfmpegGeneralError
 
         if remove_old:
             file_path.unlink()
@@ -305,7 +298,7 @@ class RacoonMediaTools:
 
     @staticmethod
     def check_scale_to_UNeven_dimentions(file_path: Path, remove_old=True) -> list[int | list]:
-        image_dimentions = RacoonMediaTools.get_media_dimentions(file_path)
+        image_dimentions = RaccoonMediaTools.get_media_dimentions(file_path)
         new_dimentions = []
         flagged = False
         for dimention in image_dimentions:
@@ -316,14 +309,14 @@ class RacoonMediaTools:
                 new_dimentions.append(dimention)
         if flagged:
             dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
-            RacoonMediaTools.scale_image(file_path, dimentions, remove_old)
+            RaccoonMediaTools.scale_image(file_path, dimentions, remove_old)
             return [1, new_dimentions]
         else:
             return [0, image_dimentions]
 
     @staticmethod
     def check_scale_to_even_dimentions(file_path: Path, remove_old=True) -> list[int | list]:
-        image_dimentions = RacoonMediaTools.get_media_dimentions(file_path)
+        image_dimentions = RaccoonMediaTools.get_media_dimentions(file_path)
         new_dimentions = []
         flagged = False
         for dimention in image_dimentions:
@@ -334,7 +327,7 @@ class RacoonMediaTools:
                 new_dimentions.append(dimention)
         if flagged:
             dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
-            RacoonMediaTools.scale_image(file_path, dimentions, remove_old)
+            RaccoonMediaTools.scale_image(file_path, dimentions, remove_old)
             return [1, new_dimentions]
         else:
             return [0, image_dimentions]
@@ -349,7 +342,7 @@ class RacoonMediaTools:
             sound_input_path: Path = self.sound_input_paths[0]
             name = sound_input_path.stem
 
-            duration = RacoonMediaTools.get_audio_duration(sound_input_path)
+            duration = RaccoonMediaTools.get_audio_duration(sound_input_path)
             if pure_audio:
                 ffmpegOutput = sp.run(f'ffmpeg '
                                       f'-loglevel fatal '
@@ -387,8 +380,8 @@ class RacoonMediaTools:
                                       shell=True, capture_output=False)
 
             if lenght_check:
-                oryginalDuration = RacoonMediaTools.get_audio_duration(sound_input_path)
-                converterDuration = RacoonMediaTools.get_audio_duration(Path(f'{output_path}\\{name}.mp4'))
+                oryginalDuration = RaccoonMediaTools.get_audio_duration(sound_input_path)
+                converterDuration = RaccoonMediaTools.get_audio_duration(Path(f'{output_path}\\{name}.mp4'))
                 if oryginalDuration != converterDuration:
                     temp_path = sound_input_path.stem + "_temp" + sound_input_path.suffix
                     sp.run(
@@ -423,8 +416,8 @@ class RacoonMediaTools:
                     shell=True)
 
                 if lenght_check:
-                    oryginalDuration = RacoonMediaTools.get_audio_duration(sound_input_path[INDEX])
-                    converterDuration = RacoonMediaTools.get_audio_duration(
+                    oryginalDuration = RaccoonMediaTools.get_audio_duration(sound_input_path[INDEX])
+                    converterDuration = RaccoonMediaTools.get_audio_duration(
                         Path.joinpath(output_path, paths_to_file_no_extension[INDEX]).with_suffix('.mp4'))
 
                     if oryginalDuration != converterDuration:
@@ -455,9 +448,9 @@ class RacoonMediaTools:
             print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
                   f'Checking {Fore.LIGHTYELLOW_EX}"{self.image_input_path.name}"{Fore.RESET} '
                   f'for uneven image dimentions...')
-            oryginal_dimentions = RacoonMediaTools.get_media_dimentions(self.image_input_path)
+            oryginal_dimentions = RaccoonMediaTools.get_media_dimentions(self.image_input_path)
             try:
-                ffmpegOutput = RacoonMediaTools.check_scale_to_even_dimentions(self.image_input_path)
+                ffmpegOutput = RaccoonMediaTools.check_scale_to_even_dimentions(self.image_input_path)
                 if ffmpegOutput[0] == 1:
                     print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
                           f'Scaled {Fore.LIGHTYELLOW_EX}"{self.image_input_path.name}"{Fore.RESET} '
@@ -468,8 +461,8 @@ class RacoonMediaTools:
                 else:
                     print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
                           f'{Fore.LIGHTGREEN_EX}Dimentions are even!\n{Style.RESET_ALL}')
-            except RacoonErrors.FfmpegGeneralError:
-                RacoonMediaTools.askExit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
+            except RaccoonErrors.FfmpegGeneralError:
+                RaccoonMediaTools.askExit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
                                          f'Ffmpeg needs even dimentions to work\n'
                                          f'Try manually changing the dimentions to be even and then try again')
 
@@ -501,15 +494,15 @@ class RacoonMediaTools:
                                                     f'"{temp_audio_path}"',
                                                     shell=True, capture_output=False)
                     if ffmpegOutput_converter.returncode != 0:
-                        raise RacoonErrors.FfmpegGeneralError('Something went to shit')
-                except RacoonErrors.FfmpegGeneralError:
-                    RacoonMediaTools.askExit("Something went wrong while converting audio input into flac")
+                        raise RaccoonErrors.FfmpegGeneralError('Something went to shit')
+                except RaccoonErrors.FfmpegGeneralError:
+                    RaccoonMediaTools.askExit("Something went wrong while converting audio input into flac")
             try:
                 with open(output_path / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
                     for temp_audio_path in temp_audio_paths:
                         audio_input_list.write(f"file '{str(temp_audio_path)}'\n")
             except (Exception,):
-                RacoonMediaTools.askExit(f'{Fore.RED}Something went wrong while creating and writing the audio list!{Fore.RES}\n')
+                RaccoonMediaTools.askExit(f'{Fore.RED}Something went wrong while creating and writing the audio list!{Fore.RES}\n')
 
             # Concad audio files
             print(f'\n{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} Concading audio files into one...  ')
@@ -524,11 +517,11 @@ class RacoonMediaTools:
                                              f'"{final_concad_file_path}"',
                                              capture_output=True)
                 if ffmpegOutput_concad.returncode != 0:
-                    raise RacoonErrors.FfmpegConcadError('something went to shit')
+                    raise RaccoonErrors.FfmpegConcadError('something went to shit')
 
-            except RacoonErrors.FfmpegConcadError:
+            except RaccoonErrors.FfmpegConcadError:
                 print(ffmpegOutput_concad)
-                RacoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} '
+                RaccoonMediaTools.askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} '
                                          f'{Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
             else:
                 print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} '
@@ -540,8 +533,8 @@ class RacoonMediaTools:
             try:
                 oryginal_audios_durations = []
                 for audio_path in audio_paths:
-                    oryginal_audios_durations.append(RacoonMediaTools.get_audio_duration(audio_path))
-                oryginal_audios_duration = RacoonMediaTools.add_times(oryginal_audios_durations)
+                    oryginal_audios_durations.append(RaccoonMediaTools.get_audio_duration(audio_path))
+                oryginal_audios_duration = RaccoonMediaTools.add_times(oryginal_audios_durations)
             except (Exception,):
                 print(f'\n{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                       f'Pre concad added files duration: '
@@ -555,9 +548,9 @@ class RacoonMediaTools:
             try:
                 converted_durations = []
                 for path in temp_audio_paths:
-                    converted_durations.append(RacoonMediaTools.get_audio_duration(path))
+                    converted_durations.append(RaccoonMediaTools.get_audio_duration(path))
 
-                converted_duration = RacoonMediaTools.add_times(converted_durations)
+                converted_duration = RaccoonMediaTools.add_times(converted_durations)
 
             except (Exception,):
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
@@ -570,7 +563,7 @@ class RacoonMediaTools:
 
             # Duration of the output .flac file
             try:
-                final_flac_duration = RacoonMediaTools.get_audio_duration(final_concad_file_path)
+                final_flac_duration = RaccoonMediaTools.get_audio_duration(final_concad_file_path)
             except (Exception,):
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                       f'Final file duration: '
@@ -581,7 +574,7 @@ class RacoonMediaTools:
                       f'{Fore.LIGHTYELLOW_EX}{final_flac_duration}{Fore.RESET}')
 
             try:
-                convertionDifference = RacoonMediaTools.hhmmss_to_seconds(final_flac_duration) - RacoonMediaTools.hhmmss_to_seconds(oryginal_audios_duration)
+                convertionDifference = RaccoonMediaTools.hhmmss_to_seconds(final_flac_duration) - RaccoonMediaTools.hhmmss_to_seconds(oryginal_audios_duration)
             except (Exception,):
                 print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                       f'Duration difference (converted - oryginal): '
@@ -590,11 +583,11 @@ class RacoonMediaTools:
                 if 1.000 > convertionDifference > -1.000:
                     print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                           f'Duration difference (converted - oryginal): '
-                          f'{Fore.LIGHTGREEN_EX}{RacoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
+                          f'{Fore.LIGHTGREEN_EX}{RaccoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
                 else:
                     print(f'{Fore.LIGHTCYAN_EX}[Time counter]{Fore.RESET} '
                           f'Duration difference (converted - oryginal): '
-                          f'{Fore.RED}{RacoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
+                          f'{Fore.RED}{RaccoonMediaTools.seconds_to_hhmmss(convertionDifference)}{Fore.RESET}')
 
             # Remove temp audio files from disc
             if not TEST:
@@ -623,9 +616,9 @@ class RacoonMediaTools:
                                           f'"{final_mp4_file_path}"',
                                           shell=True, capture_output=False)
                 if ffmpegOutput_vid.returncode != 0:
-                    raise RacoonErrors.FfmpegGeneralError('something went to shit')
+                    raise RaccoonErrors.FfmpegGeneralError('something went to shit')
 
-            except RacoonErrors.FfmpegGeneralError:
+            except RaccoonErrors.FfmpegGeneralError:
                 print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} {Fore.RED}Something went wrong while making the video!{Style.RESET_ALL}')
                 print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Style.RESET_ALL} Trying without re-encoding the audio...')
                 try:
@@ -646,9 +639,9 @@ class RacoonMediaTools:
                                               f'"{ofinal_mp4_file_path}"',
                                               shell=True, capture_output=False)
                     if ffmpegOutput_vid.returncode != 0:
-                        raise RacoonErrors.FfmpegGeneralError('something went to shit')
-                except RacoonErrors.FfmpegGeneralError:
-                    RacoonMediaTools.askExit(f'Yeah something went to *shit shit* while creating the final video\n'
+                        raise RaccoonErrors.FfmpegGeneralError('something went to shit')
+                except RaccoonErrors.FfmpegGeneralError:
+                    RaccoonMediaTools.askExit(f'Yeah something went to *shit shit* while creating the final video\n'
                                              f'Maybe try  again?')
                 else:
                     print(f'{Fore.LIGHTCYAN_EX}[Vid Maker]{Fore.RESET} '

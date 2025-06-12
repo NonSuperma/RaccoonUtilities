@@ -1,8 +1,8 @@
 import subprocess as sp
 from tkinter import filedialog, Tk
-from Racoon import RacoonMediaTools as RacoonMT
-from Racoon import RacoonErrors as RuE
-from Racoon import RacoonWindowsTools as RacoonWT
+from racoon import RaccoonMediaTools as RacoonMT
+from racoon import RaccoonErrors as RuE
+from racoon import RacoonWindowsTools as RacoonWT
 
 
 def createFullAlbum(image_path, audio_paths, album_name):

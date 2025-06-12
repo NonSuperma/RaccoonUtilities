@@ -1,6 +1,6 @@
 import subprocess as sp
-from Racoon import RacoonMediaTools as Ru
-from Racoon import RacoonErrors as RuE
+from racoon import RaccoonMediaTools as Ru
+from racoon import RaccoonErrors as RuE
 from playsound3 import playsound
 from colorama import init, Fore, Back, Style
 from tkinter import Tk
@@ -17,7 +17,7 @@ def resource_path(relative_path):
 
 
 def play_success_sound() -> None:
-	sound_file = resource_path('au5-1.mp3')
+	sound_file = resource_path('SourceFiles/au5-1.mp3')
 	playsound(sound_file)
 
 
