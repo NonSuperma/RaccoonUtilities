@@ -1,3 +1,4 @@
+from Raccoon.mediaUtilities import get_media_dimentions
 from tkinter import Tk
 from PIL import ImageGrab
 import subprocess
@@ -8,15 +9,6 @@ import msvcrt
 import os.path
 
 # pyinstaller ClipboardImageGet.py --noconsole --onefile --icon=5-1.ico
-
-def get_media_dimentions(file_path) -> list[str] or None:
-    ffprobeOutput = subprocess.run(f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 {file_path}', shell=True, capture_output=True)
-    if ffprobeOutput.returncode != 0:
-        return None
-    else:
-        dimentions = ffprobeOutput.stdout.decode().strip().split('x')
-        dimentions = [int(dimention) for dimention in dimentions]
-    return dimentions
 
 def count_open_explorer_downloads_windows():
     import pygetwindow as gw
