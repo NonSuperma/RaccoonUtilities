@@ -216,8 +216,6 @@ class RacoonMediaTools:
 
     @staticmethod
     def get_audio_encoding(file_path: Path) -> str or None:
-        if isinstance(file_path, list):
-            file_path = file_path[0]
         extensions = ['.png', '.jpg', '.jpeg', '.webp']
         if file_path.suffix in extensions:
             return None
