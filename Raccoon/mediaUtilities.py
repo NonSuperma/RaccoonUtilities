@@ -16,4 +16,3 @@ def get_media_dimentions(file_path) -> list[str] or None:
         dimentions = ffprobeOutput.stdout.decode().strip().split('x')
         dimentions = [int(dimention) for dimention in dimentions]
     return dimentions
-

@@ -5,7 +5,6 @@ import msvcrt
 import sys
 
 
-
 def askExit(message: str, timeout: int = 5) -> None:
     print(message)
     print(f"Press any key to exit (or wait {timeout:.0f}s)…")
@@ -20,6 +19,7 @@ def askExit(message: str, timeout: int = 5) -> None:
         time.sleep(0.05)
 
     sys.exit()
+
 
 def winDirPath(message: str) -> Path:
     root = Tk()
