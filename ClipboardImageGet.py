@@ -1,4 +1,7 @@
 from Raccoon.mediaUtilities import get_media_dimentions
+from Raccoon.windowsUtilities import askExit
+from Raccoon.imageUtilities import scale_image
+from pathlib import Path
 from tkinter import Tk
 from PIL import ImageGrab
 import subprocess
@@ -39,34 +42,31 @@ def crop_square_from_1920x1080_media(file_path, output_name) -> None:
     return None
 
 def main():
-    hide_console()
 
     image = ImageGrab.grabclipboard()
 
     if image is None:
         show_console()
-        print("No image in clipboard nigga!")
-        print("Press any key to exit...")
+        askExit("No image in clipboard nigga!")
 
-        start_time = time.time()
-        while True:
-            if msvcrt.kbhit() or time.time() - start_time > 5:
-                break
-            time.sleep(1)
-        sys.exit()
+    downloads_path = Path.home() / 'Downloads'
+    filename = 'clipboard'
+    number = 1
+    pathToFile = (downloads_path / filename).with_suffix('.png')
 
-    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
-    image.save(f'{downloads_path}\\clipboard.png')
+    while pathToFile.exists():
+        filename = 'clipboard' + str(number)
+        pathToFile = (downloads_path / filename).with_suffix('.png')
+        number += 1
 
-    ss_dymentions = get_media_dimentions(f'{downloads_path}\\clipboard.png')
+    image.save(pathToFile)
+
+    ss_dymentions = get_media_dimentions(pathToFile)
+    print(pathToFile)
+    print(ss_dymentions)
     if ss_dymentions == [1920, 1080]:
-        crop_square_from_1920x1080_media(f'{downloads_path}\\clipboard.png', f'clipboard__square.png')
-        subprocess.run(f'ffmpeg '
-                       f'-y '
-                       f'-i "{downloads_path}\\clipboard__square.png" '
-                       f'-vf scale=500:500 '
-                       f'"{downloads_path}\\clipboard__square500x500.png"',
-                       shell=True, capture_output=True)
+        crop_square_from_1920x1080_media(pathToFile, f'clipboard__square.png')
+        scale_image(Path(f"{downloads_path}\\clipboard__square.png"), '500:500')
 
     if count_open_explorer_downloads_windows() < 1:
         root = Tk()
