@@ -11,13 +11,13 @@ import time
 import msvcrt
 import os.path
 
-# pyinstaller ClipboardImageGet.py --noconsole --onefile --icon=5-1.ico
 
 def count_open_explorer_downloads_windows():
     import pygetwindow as gw
     windows = gw.getWindowsWithTitle('')
     explorer_windows = [window for window in windows if 'Downloads' in window.title]
     return len(explorer_windows)
+
 
 def show_console():
     root = Tk()
@@ -28,8 +28,10 @@ def show_console():
     sys.stderr = open('CONOUT$', 'w')
     sys.stdin = open('CONIN$', 'r')
 
+
 def hide_console():
     ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
+
 
 def crop_square_from_1920x1080_media(file_path, output_name) -> None:
     downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -40,6 +42,7 @@ def crop_square_from_1920x1080_media(file_path, output_name) -> None:
                    f'"{downloads_path}\\{output_name}"',
                    shell=True, capture_output=True)
     return None
+
 
 def main():
 
@@ -62,8 +65,7 @@ def main():
     image.save(pathToFile)
 
     ss_dymentions = get_media_dimentions(pathToFile)
-    print(pathToFile)
-    print(ss_dymentions)
+
     if ss_dymentions == [1920, 1080]:
         crop_square_from_1920x1080_media(pathToFile, f'clipboard__square.png')
         scale_image(Path(f"{downloads_path}\\clipboard__square.png"), '500:500')
@@ -73,6 +75,7 @@ def main():
         root.withdraw()
         root.lift()
         subprocess.run(f'explorer {downloads_path}')
+
 
 if __name__ == '__main__':
     main()
