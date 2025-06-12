@@ -45,6 +45,7 @@ def crop_square_from_1920x1080_media(file_path, output_name) -> None:
 
 
 def main():
+    hide_console()
 
     image = ImageGrab.grabclipboard()
 
