@@ -140,3 +140,9 @@ def count_open_windows(process_name: str) -> int or None:
             pass
 
     return open_windows
+
+def fileIsInDir(file_name: str, dir_path: Path) -> bool:
+    if any(x.name == file_name for x in list(dir_path.iterdir())):
+        return True
+    else:
+        return False
