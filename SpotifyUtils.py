@@ -8,6 +8,7 @@ from colorama import init, Fore, Back, Style, just_fix_windows_console
 import requests
 import os
 from tqdm import tqdm
+from Raccoon import windowsUtilities
 
 with open('Spotify_info.json', 'r') as f:
     data = json.load(f)
@@ -121,31 +122,37 @@ def getImageFromURL(_url, output_path):
     print('Done!')
 
 
-def getBitrate(sound_input_path):
-    if len(sound_input_path) == 1:
-        sound_input_path = sound_input_path[0]
-        value = sp.run(
-            f'ffprobe '
-            f'-v quiet '
-            f'-select_streams a:0 '
-            f'-show_entries stream=bit_rate '
-            f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
-            shell=True, capture_output=True).stdout.decode().strip()
-        __type = 'bitrate'
-        if value == 'N/A':
-            value = sp.run(
-                f'ffprobe '
-                f'-v quiet '
-                f'-select_streams a:0 '
-                f'-show_entries stream=sample_rate '
-                f'-of default=noprint_wrappers=1:nokey=1 "{sound_input_path}"',
-                shell=True, capture_output=True).stdout.decode().strip()
-            __type = 'samplerate'
+def yt_dlp_search_best(query, n_results=4):
+    ydl_opts = {"quiet": True, "skip_download": True, "ignore_errors": True, "no_playlist": True, "flat_playlist": True}
+    with YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch{n_results}:{query}", download=False)
+        entries = info.get("entries", [])
 
-        output = {
-            __type: int(value)
+        def getScore(entry):
+            title = entry.get("title", "")
+            channel = entry.get("uploader", "") or entry.get("creator", "")
+            score = 0
+            qnorm = re.sub(r'\W+', '', query).lower()
+            if re.sub(r'\W+', '', title).lower() == qnorm:
+                score += 80
+            if re.search(r'\bofficial\b|\bofficial video\b|vevo', title, re.I):
+                score += 20
+            if re.search(re.escape(query), channel, re.I):
+                score += 100
+            if re.search(r'remix|sped up|slowed|slowed down|reverb|reverbed|', title) and not re.search(r'remix|sped up|slowed|slowed down|reverb|reverbed|', query):
+                score -= 90
+            score += min(int(entry.get("view_count") or 0) // 1000000, 10)
+            return score
+
+        if not entries:
+            return None
+        best = max(entries, key=getScore)
+        return {
+            "title": best.get("title"),
+            "uploader": best.get("uploader"),
+            "url": best.get("webpage_url") or f"https://www.youtube.com/watch?v={best.get('id')}",
+            "view_count": best.get("view_count")
         }
-    return output
 
 
 def file_exists_without_extension(file_path: Path) -> bool:
@@ -156,59 +163,69 @@ def file_exists_without_extension(file_path: Path) -> bool:
 
 
 if __name__ == '__main__':
-    just_fix_windows_console()
+    test = True
     #silly
     #url = 'https://open.spotify.com/playlist/6Fo09y9qtxLyNjK4VWPE9d?si=27db522f9d414d1e'
     #house
     #url = "https://open.spotify.com/playlist/6fg55GcV1ZKcsvl8NaGbOe?si=b6f1e564623f45ae"
     #problematic names
     #url = "https://open.spotify.com/playlist/0H7ep5d4XU0aPMCUZIaOwg?si=600b82d4791c451d&pt=c566801a7663c16ad24a7e16e5f33aa4"
-    print(f'Enter URL: ')
-    print(f'Enter "list" instead of an url to list the artists and tracks of an album/playlist instead.')
-    url = input(f'\033[F\033[F\033[11C').strip()
-    if url == 'list':
-        print(f'\033[F\033[K\n\033[K')
-        url = input('\033[F\033[FEnter URL to index: ')
-        isInListMode = True
+    if not test:
+        print(f'Enter URL: ')
+        print(f'Enter "list" instead of an url to list the artists and tracks of an album/playlist instead.')
+        url = input(f'\033[F\033[F\033[11C').strip()
+        if url == 'list':
+            print(f'\033[F\033[K\n\033[K')
+            url = input('\033[F\033[FEnter URL to index: ')
+            isInListMode = True
+        else:
+            print(f'\033[K')
+            isInListMode = False
     else:
-        print(f'\033[K')
-        isInListMode = False
+        choice = input('Is in List mode? (y/n): ')
+        if choice == 'y':
+            isInListMode = True
+        else:
+            isInListMode = False
+        url = 'https://open.spotify.com/playlist/6Fo09y9qtxLyNjK4VWPE9d?si=27db522f9d414d1e'
 
     USER_PATH: Path = Path(os.path.expanduser("~"))
 
     if not isInListMode:
         # Check for yt-dlp and download it if not present
-        script_dir = Path(__file__).resolve().parent
-
-        if any(x.name == 'yt-dlp.exe' for x in list(script_dir.iterdir())):
-            print(f'{Fore.GREEN}Found yt-dlp!{Fore.RESET}')
-        else:
-            url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-            fileName = 'yt-dlp.exe'
-            savePath = Path.joinpath(script_dir, fileName)
-
-            try:
-                response = requests.get(url, stream=True)
-                response.raise_for_status()
-            except (requests.exceptions.HTTPError, requests.exceptions.RequestException):
-                input(f'{Fore.RED}WARNING{Fore.RESET}\n'
-                      f'Error while trying to automatically download yt-dlp. You need to download yt-dlp.exe to the directory the program was ran from before continuing.\n\n'
-                      f'If yt-dlp.exe is in the correct place, press {Fore.GREEN}ENTER{Fore.RESET}')
+        def yt_dlpFileCheck():
+            script_dir = Path(__file__).resolve().parent
+            if windowsUtilities.fileIsInDir('yt-dlp.exe', script_dir):
+                print(f'{Fore.GREEN}Found yt-dlp!{Fore.RESET}')
             else:
-                total_size = int(response.headers.get("content-length", 0))
-                chunk_size = 8192
 
-                with open(savePath, "wb") as f, tqdm(
-                        desc=fileName,
-                        total=total_size,
-                        unit="iB",
-                        unit_scale=True,
-                        unit_divisor=1024,
-                ) as bar:
-                    for chunk in response.iter_content(chunk_size=chunk_size):
-                        size = f.write(chunk)
-                        bar.update(size)
-                        
+                url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
+                fileName = 'yt-dlp.exe'
+                savePath = Path.joinpath(script_dir, fileName)
+
+                try:
+                    response = requests.get(url, stream=True)
+                    response.raise_for_status()
+                except (requests.exceptions.HTTPError, requests.exceptions.RequestException):
+                    input(f'{Fore.RED}WARNING{Fore.RESET}\n'
+                          f'Error while trying to automatically download yt-dlp. You need to download yt-dlp.exe to the directory the program was ran from before continuing.\n\n'
+                          f'If yt-dlp.exe is in the correct place, press {Fore.GREEN}ENTER{Fore.RESET}')
+                else:
+                    total_size = int(response.headers.get("content-length", 0))
+                    chunk_size = 8192
+
+                    with open(savePath, "wb") as f, tqdm(
+                            desc=fileName,
+                            total=total_size,
+                            unit="iB",
+                            unit_scale=True,
+                            unit_divisor=1024,
+                    ) as bar:
+                        for chunk in response.iter_content(chunk_size=chunk_size):
+                            size = f.write(chunk)
+                            bar.update(size)
+        yt_dlpFileCheck()
+
         if url.find('playlist') != -1:
             data = getPlaylistTracks(url)
             artistsList = data['artists']
@@ -220,16 +237,16 @@ if __name__ == '__main__':
             playlistName_safe = playlistName
             for symbol in restrictedSymbols:
                 if playlistName_safe.find(symbol) != -1:
-                    playlistName_safe.replace(symbol, '#')
+                    playlistName_safe = playlistName_safe.replace(symbol, '#')
                     
             artistsList_safe = artistsList
             tracksList_safe = tracksList
             for index in range(totalTracks):
                 for symbol in restrictedSymbols:
                     if artistsList_safe[index].find(symbol) != -1:
-                        artistsList_safe[index].replace(symbol, '#')
+                        artistsList_safe[index] = artistsList_safe[index].replace(symbol, '#')
                     if tracksList_safe[index].find(symbol) != -1:
-                        tracksList_safe[index].replace(symbol, '#')
+                        tracksList_safe[index] = tracksList_safe[index].replace(symbol, '#')
                     
             if playlistName_safe != playlistName:
                 playlistNameWasAltered = True
@@ -259,7 +276,7 @@ if __name__ == '__main__':
                 trackFullName = f'{data['artists'][INDEX]} - {data['tracks'][INDEX]}'
                 trackStemPath = Path.joinpath(OUTPUT_PATH, trackFullName)
                 print(
-                    f'{Fore.CYAN}Downloading{Fore.RESET} "{data["artists"][INDEX]} - {data["tracks"][INDEX]}" {Fore.LIGHTCYAN_EX}({tracks_downloaded}/{totalTracks}){Fore.RESET}')
+                    f'{Fore.CYAN}Downloading{Fore.RESET} "{trackFullName}" {Fore.LIGHTCYAN_EX}({tracks_downloaded}/{totalTracks}){Fore.RESET}')
 
                 try:
                     if file_exists_without_extension(trackStemPath):
@@ -282,8 +299,7 @@ if __name__ == '__main__':
                                                    f'-o "%(title)s.%(ext)s" '
                                                    f'-f ba '
                                                    f'"{data['artists'][INDEX]} - {data['tracks'][INDEX]} official video audio"',
-                                                   shell=True, capture_output=True).stdout.decode(
-                    errors='ignore').strip()
+                                                   shell=True, capture_output=True).stdout.decode(errors='ignore').strip()
 
                 if downloadData.find(f'has already been downloaded') != -1:
                     print(f"{Fore.RED}Already downloaded, skipping...{Fore.RESET}\n")
@@ -302,6 +318,7 @@ if __name__ == '__main__':
                 print(f'{Fore.GREEN}Downloaded{Fore.RESET} "{fileName}"')
 
                 encoding = getAudioEncoding(filePath)
+                print(encoding)
                 if encoding != str(filePath)[str(filePath).rfind('.') + 1:]:
                     convertData = subprocess.run(f'ffmpeg '
                                                  f'-y '
@@ -458,19 +475,21 @@ if __name__ == '__main__':
 
         if url.find('playlist') != -1:
             data = getPlaylistTracks(url)
-            playlistName: str = data['playlistName']
-            OUTPUT_PATH = Path.joinpath(USER_PATH, 'Downloads', playlistName.replace('?', '_'))
-            os.makedirs(OUTPUT_PATH, exist_ok=True)
             playlistName = data['playlistName']
             restrictedSymbols = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
             playlistName_safe = playlistName
             for symbol in restrictedSymbols:
                 if playlistName_safe.find(symbol) != -1:
-                    playlistName_safe.replace(symbol, '#')
+                    playlistName_safe = playlistName_safe.replace(symbol, '#')
+
+            OUTPUT_PATH = Path.joinpath(USER_PATH, 'Downloads', playlistName_safe)
+
+            os.makedirs(OUTPUT_PATH, exist_ok=True)
+
 
             outputFilePath: Path = Path.joinpath(OUTPUT_PATH, playlistName_safe).with_suffix('.txt')
             print(outputFilePath)
-            with open(outputFilePath, 'w+') as file:
+            with open(outputFilePath, 'w', encoding='utf-8') as file:
                 file.write(playlistName)
                 file.write('\n\n')
                 for index in range(data['total']):
@@ -499,7 +518,7 @@ if __name__ == '__main__':
 
             outputFilePath: Path = Path.joinpath(OUTPUT_PATH, albumName_safe).with_suffix('.txt')
             print(outputFilePath)
-            with open(outputFilePath, 'w+') as file:
+            with open(outputFilePath, 'w', encoding='utf-8') as file:
                 file.write(albumName)
                 file.write('\n\n')
                 for index in range(data['total']):
@@ -510,5 +529,4 @@ if __name__ == '__main__':
                     file.write('\n')
 
             os.startfile(outputFilePath)
-            coverURL = getAlbumCoverURL(url)
-            getImageFromURL(coverURL, OUTPUT_PATH)
+            getImageFromURL(getAlbumCoverURL(url), OUTPUT_PATH)
