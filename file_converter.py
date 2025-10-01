@@ -10,37 +10,38 @@ def convertFiles(songs: list[str]):
 
 	extension = "." + input('Extension (without ".")\n: ')
 
-	def convert(name: Path, newExtension):
-		if name.suffix != extension:
-			emptyName = Path.joinpath(name.parent, name.stem)
-			bitrate = Ru.get_bitrate(name)
+	#single file path. Bare
+	def convert(path_to_file: Path, newExtension):
+		if path_to_file.suffix != extension:
+			emptyName = Path.joinpath(path_to_file.parent, path_to_file.stem)
+			bitrate = Ru.get_bitrate(path_to_file)
 
 			if bitrate is None:
 				if newExtension == '.ico':
-					dimentions = Ru.get_media_dimentions(name)
+					dimentions = Ru.get_media_dimentions(path_to_file)
 					print(dimentions)
-					print(f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"')
+					print(f'"{path_to_file[:path_to_file.rfind(".")]}_cut{path_to_file[path_to_file.rfind("."):]}"')
 
 					if dimentions[0] > 256 or dimentions[1] > 256:
 						print(f'ffmpeg '
 							   f'-y '
-							   f'-i "{name}" '
+							   f'-i "{path_to_file}" '
 							   f'-vf scale=256:256 '
-							   f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"')
+							   f'"{path_to_file[:path_to_file.rfind(".")]}_cut{path_to_file[path_to_file.rfind("."):]}"')
 						sp.run(f'ffmpeg '
 							   f'-y '
-							   f'-i "{name}" '
+							   f'-i "{path_to_file}" '
 							   f'-vf scale=256:256 '
-							   f'"{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}"',
+							   f'"{path_to_file[:path_to_file.rfind(".")]}_cut{path_to_file[path_to_file.rfind("."):]}"',
 							   shell=True, capture_output=True)
-						sp.run(f'del "{name}"', shell=True)
+						sp.run(f'del "{path_to_file}"', shell=True)
 						sp.run(
-							f'ren "{name[:name.rfind(".")]}_cut{name[name.rfind("."):]}" "{name[name.rfind('\\') + 1:]}"',
+							f'ren "{path_to_file[:path_to_file.rfind(".")]}_cut{path_to_file[path_to_file.rfind("."):]}" "{path_to_file[path_to_file.rfind('\\') + 1:]}"',
 							shell=True)
 
 				sp.run(f'ffmpeg '
 					   f'-y '
-					   f'-i "{name}" '
+					   f'-i "{path_to_file}" '
 					   f'-update 1 '
 					   f'-frames:v 1 '
 					   f'"{emptyName}{newExtension}"',
@@ -50,9 +51,9 @@ def convertFiles(songs: list[str]):
 			else:
 
 
-				print(f'ffmpeg -i "{name}" -b:a {list(Ru.get_bitrate(name).values())[0]} "{emptyName}{newExtension}"')
+				print(f'ffmpeg -i "{path_to_file}" -b:a {list(Ru.get_bitrate(path_to_file).values())[0]} "{emptyName}{newExtension}"')
 				# sp.run(f'ffmpeg -i "{name}" -b:a {list(Ru.getBitrate(name).values())[0]} "{emptyName}{newExtension}"', shell=True)
-				sp.run(f'ffmpeg -y -i "{name}" -b:a 270k "{emptyName}{newExtension}"',
+				sp.run(f'ffmpeg -y -i "{path_to_file}" -b:a 270k "{emptyName}{newExtension}"',
 					   shell=True)
 		else:
 			pass

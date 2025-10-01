@@ -5,7 +5,8 @@ from Raccoon.errors import FfmpegGeneralError
 from Raccoon.mediaUtilities import get_media_dimentions
 
 
-def scale_image(file_path: Path, new_dimentions: str, remove_old=False) -> None:
+def ScaleImage(file_path: Path, new_dimentions: str, remove_old=False):
+    # Dimentions in this format;  1000:1000
     new_name = str(file_path.stem) + f'__{new_dimentions.replace(':', 'x')}{str(file_path.suffix)}'
     new_file_path = Path(file_path.parent / new_name)
 
@@ -23,6 +24,7 @@ def scale_image(file_path: Path, new_dimentions: str, remove_old=False) -> None:
     if remove_old:
         file_path.unlink()
         new_file_path.rename(file_path)
+    return new_file_path
 
 
 class ScaleToEvenResults:
@@ -51,7 +53,7 @@ def ScaleToEven(file_path: Path, remove_old=True, alternatively_uneven=False) ->
                 new_dimentions.append(dimention)
     if flagged:
         dimentions = f'{new_dimentions[0]}:{new_dimentions[1]}'
-        scale_image(file_path, dimentions, remove_old)
-        return ScaleToEvenResults(returncode=1, dimensions=new_dimentions)
+        ScaleImage(file_path, dimentions, remove_old)
+        return ScaleToEvenResults(returncode=0, dimensions=new_dimentions)
     else:
-        return ScaleToEvenResults(returncode=0, dimensions=image_dimentions)
+        return ScaleToEvenResults(returncode=1, dimensions=image_dimentions)

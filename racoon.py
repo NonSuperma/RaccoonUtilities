@@ -270,7 +270,7 @@ class RaccoonMediaTools:
 
             else:
                 ffmpegOutput = sp.run(f'ffmpeg '
-                                      f'-loglevel fatal '
+                                      f''
                                       f'-y '
                                       f'-loop 1 '
                                       f'-framerate 1 '
@@ -514,8 +514,8 @@ class RaccoonMediaTools:
                                           f'-i "{final_concad_file_path}" '
                                           f'-c:v libx264 '
                                           f'-tune stillimage '
-                                          f'-c:a aac '
-                                          f'-b:a 128k '
+                                          f'-c:a mp3 '
+                                          f'-b:a 320k '
                                           f'-t {converted_duration} '
                                           f'-movflags +faststart '
                                           f'-vf "format=yuv420p" '
