@@ -1,3 +1,5 @@
+import sys, os
+
 def seconds_to_hhmmss(s: float) -> str:
     sign = "-" if s < 0 else ""
     s = abs(s)
@@ -28,3 +30,13 @@ def add_times(time_list: list[str] or list[float]) -> str:
         else:
             total += hhmmss_to_seconds(t)
     return seconds_to_hhmmss(total)
+
+def resource_path(relative_path: str) -> str:
+
+    if getattr(sys, "frozen", False):
+        # Running in a PyInstaller bundle
+        base_path = sys._MEIPASS
+    else:
+        # Running in normal Python environment
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
