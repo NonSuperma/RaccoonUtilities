@@ -6,17 +6,31 @@ import msvcrt
 import sys
 
 
+
 def askExit(message: str, timeout: int = 5) -> None:
 	print(message)
-	print(f"Press any key to exit (or wait {timeout:.0f}s)…")
+	print(f'Press any key to exit (or wait {timeout} more seconds)')
+	start = time.monotonic()
+	last_shown = None
 
-	start = time.time()
 	while True:
 		if msvcrt.kbhit():
 			msvcrt.getch()
 			break
-		if time.time() - start >= timeout:
+
+		elapsed = time.monotonic() - start
+		remaining = max(0, int(timeout - elapsed))
+
+		if remaining != last_shown:
+
+			print(f"\033[F\033[K"  # Move curson up, to beginning of line and clear line
+				  f"Press any key to exit "
+				  f"(or wait {remaining} more seconds)…")
+			last_shown = remaining
+
+		if elapsed >= timeout:
 			break
+
 		time.sleep(0.05)
 
 	sys.exit()
