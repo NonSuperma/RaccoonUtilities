@@ -1,4 +1,5 @@
-from Playground import folderPath
+import colorama
+
 from Raccoon.windowsUtilities import *
 from Raccoon.audioUtilities import *
 from Raccoon.imageUtilities import *
@@ -12,7 +13,12 @@ import pyperclip
 import os
 
 def main():
-	flacFilePaths = winFilesPath('Audio', 'audio')
+	global folderPath, mp4FinalPath
+	try:
+		flacFilePaths = winFilesPath('Audio', 'audio')
+	except MissingInputError:
+		askExit(f'{Fore.RED}Audio selection window closed.')
+
 	folderPath = flacFilePaths[0].parent
 
 	label = ''
@@ -33,15 +39,26 @@ def main():
 	folderPath.rename(Path.joinpath(folderPath.parent, folderPath_safe.name))
 	# folderPath.parent.rename(Path.joinpath(folderPath.parent.parent, folderPath_safe.parent.name))
 
-	coverPath = winFilePath('Cover', 'image', initialDir=folderPath_safe)
+	try:
+		coverPath = winFilePath('Cover', 'image', initialDir=folderPath_safe)
+	except MissingInputError:
+
+		for index in range(trackCount):
+			flacFilePaths_safe[index].rename(Path.joinpath(folderPath_safe, flacFilePaths[index].name))
+
+		folderPath_safe.rename(Path.joinpath(folderPath_safe.parent, folderPath.name))
+
+		askExit(f'{Fore.RED}Cover image selection window closed.')
+
 	coverDimentions = ScaleToEven(coverPath).dimensions
 	if coverDimentions[0] > 1000 and coverDimentions[1] > 1000 and (coverDimentions != [1000, 1000]):
-		userChoice = input(f'Scale album cover to 1000x1000? Enter=Yes, n=No\n'
-						   f': ')
-		if userChoice != 'n':
-			print(f'Converting cover...')
-			coverPath = ScaleImage(coverPath, '1000:1000', remove_old=False)
-			print(f'{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}\n')
+		coverPath = ScaleImage(coverPath, '1000:1000', remove_old=False)
+		# userChoice = input(f'Scale album cover to 1000x1000? Enter=Yes, n=No\n'
+		# 				   f': ')
+		# if userChoice != 'n':
+		# 	print(f'Converting cover...')
+		# 	coverPath = ScaleImage(coverPath, '1000:1000', remove_old=False)
+		# 	print(f'{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}\n')
 
 	if trackCount > 1:
 		with open(f'{folderPath_safe}\\temp_audio_list.txt', 'w+', encoding='utf-8') as f:
@@ -118,11 +135,15 @@ def main():
 
 
 if __name__ == "__main__":
-
-	main()
-
-	# input('Press Enter to exit...')
-	playsound('SourceFiles\\au5-1.mp3')
-	os.startfile(folderPath)
-	pape
-	sys.exit(0)
+	global mp4FinalPath
+	global folderPath
+	try:
+		colorama.init(autoreset=True)
+		main()
+		playsound(resource_path('au5-1.mp3'))
+		os.startfile(folderPath)
+		pyperclip.copy(str(mp4FinalPath.name))
+		sys.exit(0)
+	except Exception as e:
+		print(e)
+		input('Press any key to exit.')
