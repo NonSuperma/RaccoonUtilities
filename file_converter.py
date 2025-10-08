@@ -14,9 +14,9 @@ def convertFiles(songs: list[str]):
 	def convert(path_to_file: Path, newExtension):
 		if path_to_file.suffix != extension:
 			emptyName = Path.joinpath(path_to_file.parent, path_to_file.stem)
-			bitrate = Ru.get_bitrate(path_to_file)
-
-			if bitrate is None:
+			extensions = ['.png', '.jpg', '.jpeg', '.webp', '.ico', '.gif', '.bmp', '.tiff', '.svg', '.heic', '.avif']
+			print(path_to_file.suffix)
+			if path_to_file.suffix in extensions:
 				if newExtension == '.ico':
 					dimentions = Ru.get_media_dimentions(path_to_file)
 					print(dimentions)
