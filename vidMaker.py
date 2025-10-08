@@ -145,5 +145,5 @@ if __name__ == "__main__":
 		pyperclip.copy(str(mp4FinalPath.name))
 		sys.exit(0)
 	except Exception as e:
-		print(e)
-		input('Press any key to exit.')
+		print(f'{Fore.RED}{str(e)}{Fore.RESET}')
+		input(f'{Fore.WHITE}Press any key to exit.')
