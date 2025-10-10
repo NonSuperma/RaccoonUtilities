@@ -1,6 +1,6 @@
 from Raccoon.mediaUtilities import get_media_dimentions
 from Raccoon.windowsUtilities import askExit
-from Raccoon.imageUtilities import ScaleImage
+from Raccoon.imageUtilities import scale_image
 from pathlib import Path
 from tkinter import Tk
 from PIL import ImageGrab
@@ -69,7 +69,7 @@ def main():
 
     if ss_dymentions == [1920, 1080]:
         crop_square_from_1920x1080_media(pathToFile, f'clipboard__square.png')
-        ScaleImage(Path(f"{downloads_path}\\clipboard__square.png"), '500:500')
+        scale_image(Path(f"{downloads_path}\\clipboard__square.png"), '500:500')
 
     if count_open_explorer_downloads_windows() < 1:
         root = Tk()
