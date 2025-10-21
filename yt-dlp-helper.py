@@ -13,18 +13,50 @@ import validators
 import pyperclip
 import sys
 
+
 # https://youtu.be/YKsQJVzr3a8?si=8EV15smo14l7Aqg8
 
 # Update to latest stable yt-dlp
-print(f'{Fore.LIGHTCYAN_EX}Updating to latest yt-dlp.exe...{Fore.RESET}')
+print(f'{Fore.LIGHTCYAN_EX}Checking if yt-dlp.exe is up to date...{Fore.RESET}')
 try:
-    if subprocess.run(f'yt-dlp -U', capture_output=True).returncode != 0:
-        raise FfmpegGeneralError
-except FfmpegGeneralError:
+    process = subprocess.Popen(
+        ['yt-dlp', '-U'],
+        stdout=sp.PIPE,
+        stderr=sp.STDOUT,
+        universal_newlines=True,
+        text=True,
+    )
+    line_count = 0
+    updated = False
+    version = None
+    for line in iter(process.stdout.readline, ''):
+        print(f'{Fore.LIGHTYELLOW_EX}{line.strip()}{Fore.RESET}')
+        if 'ERROR' in line:
+            raise ConnectionError
+        if 'Updating' in line:
+            updated = True
+        if 'Current version' in line:
+            version = line[len('Current version: '):]
+        if 'Latest version' in line:
+            version = line[len('Latest version: '):]
+        line_count += 1
+    process.wait()
+    for i in range(line_count):
+        sys.stdout.write("\033[F\033[K")
+    if updated:
+        print(f'{Fore.LIGHTGREEN_EX}'
+              f'Updated to: {version}\n'
+              f'{Fore.RESET}')
+    else:
+        print(f'{Fore.LIGHTGREEN_EX}'
+              f'Yt-dlp is up to date\n'
+              f'{Fore.RESET}')
+except ConnectionError:
     print(f'{Fore.LIGHTRED_EX}Error updating yt-dlp to newest version!!!{Fore.RESET}')
-    decision_temp = input(f'Continue with the current version? y/n')
-    if decision_temp == 'n':
+    decision_temp = input(f'Continue with the current version? y/n\n: ')
+    if decision_temp.lower() == 'n':
         askExit('')
+
 
 # Parse config
 config = configparser.ConfigParser(allow_no_value=True, delimiters='=')
@@ -55,37 +87,45 @@ if validators.url(clipBoardData):
     print(f'{Fore.LIGHTGREEN_EX}Found a valid url link in the clipboard!{Fore.RESET}\n'
           f'{Fore.LIGHTCYAN_EX}{primaryUrl}{Fore.RESET} - using that one.\n')
 else:
+    urlInput_count = 0
     while True:
-        url = input("Url: ")
-        if validators.url(url):
-            primaryUrl = url
-            break
-        elif url == "":
-            sys.stdout.write("\033[F\033[K")
-            pass
-
-        else:
-            while True:
+        if urlInput_count == 0:
+            print('Url: ', end='')
+            url = input()
+            if validators.url(url):
+                primaryUrl = url
                 sys.stdout.write("\033[F\033[K")
-                url = input(f'"{url}" is not a valid url, dumbass. Input a proper one: ')
-                if validators.url(url):
-                    primaryUrl = url
-                    break
-                elif url == "":
-                    sys.stdout.write("\033[F\033[K")
-                    pass
+                print(f'{Fore.LIGHTGREEN_EX}'
+                      f'Url: {url}'
+                      f'{Fore.RESET}')
+                break
+            urlInput_count += 1
 
-                else:
-                    sys.stdout.write("\033[F\033[K")
-                    while True:
-                        url = input(f'Still wrong, you typed "{url}", try again: ')
-                        if validators.url(url) and url != "":
-                            primaryUrl = url
-                            break
-                        sys.stdout.write("\033[F\033[K")
-                    if primaryUrl == url:
-                        break
-            break
+        if urlInput_count == 1:
+            sys.stdout.write("\033[F\033[K")
+            print(f'"{url}" is not a valid url, dumbass. Input a proper one: ', end='')
+            url = input()
+            if validators.url(url):
+                primaryUrl = url
+                sys.stdout.write("\033[F\033[K")
+                print(f'{Fore.LIGHTGREEN_EX}'
+                      f'Url: {url}'
+                      f'{Fore.RESET}')
+                break
+            urlInput_count += 1
+
+        if urlInput_count >= 2:
+            sys.stdout.write("\033[F\033[K")
+            print(f'Still wrong, you typed "{url}", try again: ', end='')
+            url = input()
+            if validators.url(url):
+                primaryUrl = url
+                sys.stdout.write("\033[F\033[K")
+                print(f'{Fore.LIGHTGREEN_EX}'
+                      f'Url: {url}'
+                      f'{Fore.RESET}')
+                break
+            urlInput_count += 1
 
 # Check if URL is a YouTube playlist
 isAPlaylist = False
