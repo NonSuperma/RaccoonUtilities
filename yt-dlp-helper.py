@@ -13,6 +13,19 @@ import validators
 import pyperclip
 import sys
 
+# https://youtu.be/YKsQJVzr3a8?si=8EV15smo14l7Aqg8
+
+# Update to latest stable yt-dlp
+print(f'{Fore.LIGHTCYAN_EX}Updating to latest yt-dlp.exe...{Fore.RESET}')
+try:
+    if subprocess.run(f'yt-dlp -U', capture_output=True).returncode != 0:
+        raise FfmpegGeneralError
+except FfmpegGeneralError:
+    print(f'{Fore.LIGHTRED_EX}Error updating yt-dlp to newest version!!!{Fore.RESET}')
+    decision_temp = input(f'Continue with the current version? y/n')
+    if decision_temp == 'n':
+        askExit('')
+
 # Parse config
 config = configparser.ConfigParser(allow_no_value=True, delimiters='=')
 config.optionxform = str
@@ -156,6 +169,9 @@ if '-res' in options:
         else:
             options = options.replace('-res', f'-f {tempInput}')
 
+if '-f' in options:
+    configOptions = configOptions.replace('-t mp4', '')
+
 if '-p' in options:
     try:
         downloadPath = winDirPath('Download destination')
@@ -174,11 +190,11 @@ finalCommand_list = [
     f'"{primaryUrl}"'
 ]
 
-finalCommand = ' '.join(finalCommand_list)
-print(primaryUrl)
-print(isAPlaylist)
-print(downloadPath)
-print(options)
-print(configOptions)
-print('')
+finalCommand = ' '.join(finalCommand_list).replace('  ', ' ')
+print('primaryUrl', primaryUrl)
+print('isAPlaylist', isAPlaylist)
+print('downloadPath', downloadPath)
+print('options', options)
+print('configOptions', configOptions)
+print()
 print(finalCommand)
