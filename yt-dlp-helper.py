@@ -1,38 +1,46 @@
+from Raccoon.errors import *
+from Raccoon.audioUtilities import *
+from Raccoon.imageUtilities import *
+from Raccoon.mediaUtilities import *
+from Raccoon.miscUtilities import *
+from Raccoon.outputClasses import *
+from Raccoon.windowsUtilities import *
+from Raccoon.outputClasses import *
+from colorama import Fore
 import configparser
-import subprocess as sp
+import subprocess
 import validators
-import win32clipboard
+import pyperclip
 import sys
-from Raccoon import *
 
 # Parse config
 config = configparser.ConfigParser(allow_no_value=True, delimiters='=')
 config.optionxform = str
 config.read("config.ini")
 
-configOptionList = ''
+configOptions_list = []
 for section in config.sections():
     if section == "DownloadPath":
         continue
     for key in config[section]:
-        configOptionList += key + ' '
+        configOptions_list.append(key)
+configOptions = ' '.join(configOptions_list).strip()
 
 for key in config['DownloadPath']:
-    downloadPath = f'{sp.run(f'echo {key}', shell=True, capture_output=True, universal_newlines=True).stdout.replace('%', '')} '.replace(
-        '\n', '')[3:]
-
+    echoOutput = subprocess.run(f'echo {key}', shell=True, capture_output=True).stdout.decode()
+    downloadPath = Path(str(echoOutput).replace('-P ', '').replace('%', ''))
 # Get clipboard data
 try:
-    win32clipboard.OpenClipboard()
-    clipBoardData = win32clipboard.GetClipboardData()
-    win32clipboard.CloseClipboard()
+    clipBoardData = pyperclip.paste()
 except (Exception,):
-    clipBoardData = 'Error'
+    clipBoardData = None
 
 # If clipboards is a URL use it, if not, get URL
 if validators.url(clipBoardData):
-    print("Found a valid url link in the clipboard!\nUsing that one.")
     primaryUrl = clipBoardData
+
+    print(f'{Fore.LIGHTGREEN_EX}Found a valid url link in the clipboard!{Fore.RESET}\n'
+          f'{Fore.LIGHTCYAN_EX}{primaryUrl}{Fore.RESET} - using that one.\n')
 else:
     while True:
         url = input("Url: ")
@@ -91,26 +99,53 @@ playlistOptionsDescription = (
     "---------------------------------------------------------------------------------------"
 )
 
-if isAPlaylist is True:
+if isAPlaylist:
     print(playlistOptionsDescription)
 else:
     print(optionsDescription)
 
 # Get tempOptions form OptionsDescription, replacing non-input related shortcut options with their full counterparts
-options = ((input(f': ')
-            .replace('-d', '--download-sections')
-            .replace('-wt', "--write-thumbnail"))
-           .strip())
+optionKeywords_short = [
+    '-d',
+    '-wt'
+]
+optionKeywords_full = [
+    '--download-sections',
+    '--write-thumbnail'
+]
+
+
+def replaceKeywords(options: str, old_list, new_list) -> str:
+    for index in range(len((old_list))):
+        options = options.replace(old_list[index], new_list[index])
+    return options
+
+
+options = (replaceKeywords(input(f': '), optionKeywords_short, optionKeywords_full)).strip()
+print()
+
 
 # Check for custom options, get input if needed and add to tempOptions
-if options.find("-res") != -1:
-    sp.run(f'yt-dlp -F {primaryUrl}')
+if '-res' in options:
+    print(f'{Fore.LIGHTCYAN_EX}Fetching a table of available streams...{Fore.RESET}')
+    result = subprocess.run(f'yt-dlp -F "{primaryUrl}"', capture_output=True, text=True)
+    output = result.stdout.splitlines()
+
+    start_index = None
+    for index, line in enumerate(output):
+        if line.strip().startswith('ID'):
+            start_index = index
+            break
+
+    sys.stdout.write("\033[F\033[K")  # go up one line and clear it
+    if start_index is not None:
+        print("\n".join(output[start_index:]))
 
     tempInput = input(
-        "WARNING!\n"
-        "Input both audio and video ids if you want both! Include one id for just one stream.\n"
-        "Example: 234+ba\n"
-        "id: "
+        'WARNING!\n'
+        'Input both audio and video ids if you want both! Include one id for just one stream.\n'
+        'Example: 234+ba\n'
+        'id: '
     )
     if tempInput != '':
         options = options.replace('-res', f'-f {tempInput}')
@@ -121,28 +156,29 @@ if options.find("-res") != -1:
         else:
             options = options.replace('-res', f'-f {tempInput}')
 
-if options.find("-p") != -1:
+if '-p' in options:
     try:
-        path = options[options.find('-p') + 3:]
-        if path.find('-') != -1:
-            path = path[:path.find('-')]
-        if path != '':
-            options = options.replace(f'-p {path}', f'')
-            downloadPath = path
-        else:
-            path = Ru.winDirPath('Download destination')
-            options = options.replace(f'-p ', f'')
-            downloadPath = path
-    except ():
-        path = Ru.winDirPath('Download destination')
-        downloadPath = path
-        oldPath = options[options.find('-p') + 3:]
-        if oldPath.find('-') != -1:
-            oldPath = oldPath[:oldPath.find('-')].strip()
-        options = options.replace(f'-p {oldPath}', f'')
+        downloadPath = winDirPath('Download destination')
+        options = options.replace(f'-p ', f'')
+    except (Exception,):
+        options = options.replace(f'-p ', f'')
+        print(f'{Fore.LIGHTRED_EX}[Error] Something went wrong while setting custom download folder.\n'
+              f'Falling back to default...{Fore.RESET}')
 
 
+finalCommand_list = [
+    'yt-dlp',
+    f'{configOptions}',
+    f'{options}',
+    f'-P "{downloadPath}"',
+    f'"{primaryUrl}"'
+]
+
+finalCommand = ' '.join(finalCommand_list)
 print(primaryUrl)
 print(isAPlaylist)
 print(downloadPath)
-print(configOptionList)
+print(options)
+print(configOptions)
+print('')
+print(finalCommand)

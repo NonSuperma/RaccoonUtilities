@@ -52,7 +52,7 @@ def main():
 
 	coverDimentions = ScaleToEven(coverPath).dimensions
 	if coverDimentions[0] > 1000 and coverDimentions[1] > 1000 and (coverDimentions != [1000, 1000]):
-		coverPath = ScaleImage(coverPath, '1000:1000', remove_old=False)
+		coverPath = scale_image(coverPath, '1000:1000', remove_old=False)
 		# userChoice = input(f'Scale album cover to 1000x1000? Enter=Yes, n=No\n'
 		# 				   f': ')
 		# if userChoice != 'n':
