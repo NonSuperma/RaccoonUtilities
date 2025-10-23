@@ -13,6 +13,7 @@ import validators
 import pyperclip
 import sys
 
+DEBUG = True
 
 # https://youtu.be/YKsQJVzr3a8?si=8EV15smo14l7Aqg8
 
@@ -168,10 +169,10 @@ optionKeywords_full = [
 ]
 
 
-def replaceKeywords(options: str, old_list, new_list) -> str:
+def replaceKeywords(string: str, old_list, new_list) -> str:
     for index in range(len((old_list))):
-        options = options.replace(old_list[index], new_list[index])
-    return options
+        string = string.replace(old_list[index], new_list[index])
+    return string
 
 
 options = (replaceKeywords(input(f': '), optionKeywords_short, optionKeywords_full)).strip()
@@ -203,7 +204,7 @@ if '-res' in options:
     if tempInput != '':
         options = options.replace('-res', f'-f {tempInput}')
     else:
-        tempInput = input('Did you mean to press enter?\nPress enter again if yes, id if no\n: ')
+        tempInput = input('Did you mean to press enter?\nPress enter again if yes, input an id if no\n: ')
         if tempInput == '':
             options = options.replace('-res', '')
         else:
@@ -231,10 +232,45 @@ finalCommand_list = [
 ]
 
 finalCommand = ' '.join(finalCommand_list).replace('  ', ' ')
-print('primaryUrl', primaryUrl)
-print('isAPlaylist', isAPlaylist)
-print('downloadPath', downloadPath)
-print('options', options)
-print('configOptions', configOptions)
-print()
-print(finalCommand)
+
+if DEBUG:
+
+    debugList = [primaryUrl, isAPlaylist, downloadPath, options, configOptions]
+    print()
+    for i in debugList:
+        print(f'{Fore.LIGHTCYAN_EX}'
+              f'[debug] '
+              f'{Fore.RESET}'
+              f'|{i}|')
+    print()
+
+
+
+try:
+    process = subprocess.Popen(
+        finalCommand,
+        stdout=sp.PIPE,
+        stderr=sp.STDOUT,
+        universal_newlines=True,
+        text=True,
+    )
+    line_count = 0
+    lastLine = process.stdout.readline
+    for line in iter(process.stdout.readline, ''):
+        if '[download]' in line:
+            if ' Destination: ' in line:
+                filePath = Path(line.replace('[download] Destination: ', '').strip())
+                print(f'\n{Fore.LIGHTCYAN_EX}'
+                      f'[download]'
+                      f'{Fore.RESET} '
+                      f'{Fore.LIGHTYELLOW_EX}'
+                      f'{filePath.name}'
+                      f'{Fore.LIGHTYELLOW_EX}')
+            print(line.replace('[download]', f'{Fore.LIGHTCYAN_EX}[download]{Fore.RESET}').strip())
+            if '% of' in line:
+                sys.stdout.write("\033[F\033[K")
+
+        lastLine = line
+except (Exception,) as e:
+    print(e)
+
