@@ -3,9 +3,7 @@ from Raccoon.audioUtilities import *
 from Raccoon.imageUtilities import *
 from Raccoon.mediaUtilities import *
 from Raccoon.miscUtilities import *
-from Raccoon.outputClasses import *
 from Raccoon.windowsUtilities import *
-from Raccoon.outputClasses import *
 from colorama import Fore
 import configparser
 import subprocess
@@ -75,6 +73,8 @@ configOptions = ' '.join(configOptions_list).strip()
 for key in config['DownloadPath']:
     echoOutput = subprocess.run(f'echo {key}', shell=True, capture_output=True).stdout.decode()
     downloadPath = Path(str(echoOutput).replace('-P ', '').replace('%', ''))
+
+
 # Get clipboard data
 try:
     clipBoardData = pyperclip.paste()
