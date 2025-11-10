@@ -11,7 +11,7 @@ import validators
 import pyperclip
 import sys
 
-DEBUG = True
+DEBUG = False
 
 # https://youtu.be/YKsQJVzr3a8?si=8EV15smo14l7Aqg8
 
@@ -48,11 +48,13 @@ try:
               f'{Fore.RESET}')
     else:
         print(f'{Fore.LIGHTGREEN_EX}'
-              f'Yt-dlp is up to date\n'
+              f'Yt-dlp is up to date [{str(version).strip()}]\n'
               f'{Fore.RESET}')
 except ConnectionError:
     print(f'{Fore.LIGHTRED_EX}Error updating yt-dlp to newest version!!!{Fore.RESET}')
-    decision_temp = input(f'Continue with the current version? y/n\n: ')
+    decision_temp = input(f'Continue with the current version? '
+                          f'(It is highly recommended to abort and manually update yt-dlp to latest stable version)\n'
+                          f'y/n\n: ')
     if decision_temp.lower() == 'n':
         askExit('')
 
@@ -193,14 +195,16 @@ if '-res' in options:
 
     sys.stdout.write("\033[F\033[K")  # go up one line and clear it
     if start_index is not None:
-        print("\n".join(output[start_index:]))
+        output = output[start_index:]
+    print("\n".join(output))
 
-    tempInput = input(
+    print(
         'WARNING!\n'
         'Input both audio and video ids if you want both! Include one id for just one stream.\n'
         'Example: 234+ba\n'
-        'id: '
+        'id: ', end=''
     )
+    tempInput = input('')
     if tempInput != '':
         options = options.replace('-res', f'-f {tempInput}')
     else:
@@ -209,6 +213,10 @@ if '-res' in options:
             options = options.replace('-res', '')
         else:
             options = options.replace('-res', f'-f {tempInput}')
+
+    if start_index is not None:
+        for i in range(len(output)+5):
+            sys.stdout.write("\033[F\033[K")
 
 if '-f' in options:
     configOptions = configOptions.replace('-t mp4', '')
@@ -255,8 +263,11 @@ try:
         text=True,
     )
     line_count = 0
+    a = 1
     lastLine = process.stdout.readline
     for line in iter(process.stdout.readline, ''):
+        if line_count != 0:
+            sys.stdout.write("\033[F\033[K")
         if '[download]' in line:
             if ' Destination: ' in line:
                 filePath = Path(line.replace('[download] Destination: ', '').strip())
@@ -267,10 +278,14 @@ try:
                       f'{filePath.name}'
                       f'{Fore.LIGHTYELLOW_EX}')
             print(line.replace('[download]', f'{Fore.LIGHTCYAN_EX}[download]{Fore.RESET}').strip())
-            if '% of' in line:
+            if '% of' in line and '100' not in line:
                 sys.stdout.write("\033[F\033[K")
+        else:
+            for i in range(a):
+                print('.', end='')
 
         lastLine = line
+        line_count += 1
 except (Exception,) as e:
     print(e)
 
