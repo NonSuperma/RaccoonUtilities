@@ -6,6 +6,7 @@ from pathlib import Path
 from colorama import Fore
 import subprocess
 
+
 def main():
     try:
         input_paths = win_files_path("videos")
