@@ -35,7 +35,7 @@ def scale_image(file_path: Path, new_dimentions: list[int], remove_old=False):
     return Output(new_file_path=new_file_path, returncode=1)
 
 
-def ScaleToEven(file_path: Path, remove_old=True, alternatively_uneven=False):
+def scale_to_even(file_path: Path, remove_old=True, alternatively_uneven=False):
     class Output:
         def __init__(self, returncode: int, dimensions: List[int]):
             self.returncode = returncode
