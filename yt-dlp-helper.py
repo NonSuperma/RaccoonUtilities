@@ -11,7 +11,7 @@ import validators
 import pyperclip
 import sys
 
-DEBUG = False
+DEBUG = True
 
 # https://youtu.be/YKsQJVzr3a8?si=8EV15smo14l7Aqg8
 
@@ -56,7 +56,7 @@ except ConnectionError:
                           f'(It is highly recommended to abort and manually update yt-dlp to latest stable version)\n'
                           f'y/n\n: ')
     if decision_temp.lower() == 'n':
-        askExit('')
+        ask_exit('')
 
 
 # Parse config
@@ -73,8 +73,8 @@ for section in config.sections():
 configOptions = ' '.join(configOptions_list).strip()
 
 for key in config['DownloadPath']:
-    echoOutput = subprocess.run(f'echo {key}', shell=True, capture_output=True).stdout.decode()
-    downloadPath = Path(str(echoOutput).replace('-P ', '').replace('%', ''))
+    echoOutput = subprocess.run(f'echo {key}', shell=True, capture_output=True, text=True).stdout
+    downloadPath = Path(echoOutput.replace('-P ', '').replace('%', ''))
 
 
 # Get clipboard data
@@ -193,7 +193,7 @@ if '-res' in options:
             start_index = index
             break
 
-    sys.stdout.write("\033[F\033[K")  # go up one line and clear it
+    console_clear_n(1)  # go up one line and clear it
     if start_index is not None:
         output = output[start_index:]
     print("\n".join(output))
@@ -214,16 +214,13 @@ if '-res' in options:
         else:
             options = options.replace('-res', f'-f {tempInput}')
 
-    if start_index is not None:
-        for i in range(len(output)+5):
-            sys.stdout.write("\033[F\033[K")
 
 if '-f' in options:
     configOptions = configOptions.replace('-t mp4', '')
 
 if '-p' in options:
     try:
-        downloadPath = winDirPath('Download destination')
+        downloadPath = win_dir_path('Download destination')
         options = options.replace(f'-p ', f'')
     except (Exception,):
         options = options.replace(f'-p ', f'')
@@ -289,3 +286,5 @@ try:
 except (Exception,) as e:
     print(e)
 
+if DEBUG:
+    filePath.unlink()
