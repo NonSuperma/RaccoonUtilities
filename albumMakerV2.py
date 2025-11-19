@@ -15,9 +15,9 @@ def main():
 	init(autoreset=True)
 
 	try:
-		imageFilePath = winFilePath('Pick the album cover image', filetypes='image')
+		imageFilePath = win_file_path('Pick the album cover image', filetypes='image')
 	except MissingInputError:
-		askExit(f"{Fore.RED}User closed the window!")
+		ask_exit(f"{Fore.RED}User closed the window!")
 
 
 	try:
@@ -32,9 +32,9 @@ def main():
 			("OPUS files", "*.opus"),
 			("Video files", "*.webm *.mp4 *.mov *.avi *.wmv")
 		]
-		audioFilesPaths = winFilesPath('Pick songs', filetypes=filetypeSelection)
+		audioFilesPaths = win_files_path('Pick songs', filetypes=filetypeSelection)
 	except MissingInputError:
-		askExit(f"{Fore.RED}User closed the window!")
+		ask_exit(f"{Fore.RED}User closed the window!")
 
 	workingFolderPath = audioFilesPaths[0].parent
 	workingFolderName = workingFolderPath.name
@@ -82,7 +82,7 @@ def main():
 		  f'for uneven image dimentions...')
 	oryginal_dimentions = get_media_dimentions(imageFilePath)
 	try:
-		ScaleToEven_Output = ScaleToEven(imageFilePath)
+		ScaleToEven_Output = scale_to_even(imageFilePath)
 		if ScaleToEven_Output.returncode == 0:
 			print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
 				  f'{Fore.LIGHTGREEN_EX}Scaled {Fore.LIGHTYELLOW_EX}"{imageFilePath.name}"{Fore.RESET} '
@@ -94,7 +94,7 @@ def main():
 			print(f'{Fore.LIGHTCYAN_EX}[Converter]{Style.RESET_ALL} '
 				  f'{Fore.LIGHTGREEN_EX}Dimentions are even!\n{Style.RESET_ALL}')
 	except FfmpegGeneralError:
-		askExit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
+		ask_exit(f'{Fore.RED}Something went wrong while scaling the cover image!{Fore.RESET}\n'
 				  f'Ffmpeg needs even dimentions to work\n'
 				  f'Try manually changing the dimentions to be even and then try again')
 
@@ -124,13 +124,13 @@ def main():
 			if ffmpegOutput_converter.returncode != 0:
 				raise FfmpegGeneralError('Something went to shit')
 		except FfmpegGeneralError:
-			askExit("Something went wrong while converting audio input into flac")
+			ask_exit("Something went wrong while converting audio input into flac")
 	try:
 		with open(workingFolderPath / 'audio_input_list.txt', 'w+', encoding='utf-8') as audio_input_list:
 			for tempAudioPath in tempAudioPaths:
 				audio_input_list.write(f"file '{str(tempAudioPath)}'\n")
 	except (Exception,):
-		askExit(
+		ask_exit(
 			f'{Fore.RED}Something went wrong while creating and writing the audio list!{Fore.RED}\n')
 
 	# Concad audio files
@@ -150,7 +150,7 @@ def main():
 
 	except FfmpegConcadError:
 		print(ffmpegOutput_concad)
-		askExit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} '
+		ask_exit(f'{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} '
 								  f'{Fore.RED}Something went wrong while concading!{Style.RESET_ALL}')
 	else:
 		print(f'{Fore.LIGHTCYAN_EX}[Concad]{Fore.RESET} '

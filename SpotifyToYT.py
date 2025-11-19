@@ -112,7 +112,7 @@ def getImageFromURL(_url, output_path):
 
 
 def yt_dlp_search_best(query, n_results=4):
-    ydl_opts = {"quiet": True, "skip_download": True, "ignore_errors": True, "no_playlist": True, "flat_playlist": True}
+    ydl_opts = {"quiet": True, "skip_download": True, "ignore_errors": True, "no_playlist": True, "flat_playlist": True, "cookies_from_browser": True}
     with YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(f"ytsearch{n_results}:{query}", download=False)
         entries = info.get("entries", [])
@@ -152,7 +152,7 @@ def file_exists_without_extension(file_path: Path) -> bool:
 
 
 if __name__ == '__main__':
-    TEST = True
+    TEST = False
 
     with open('Spotify_info.json', 'r') as f:
         playlistData = json.load(f)
@@ -194,100 +194,102 @@ if __name__ == '__main__':
 
 # Main part
 
-if 'playlist' in MAIN_URL:
+    if 'playlist' in MAIN_URL:
 
-    print(f'Getting the playlist data...')
+        print(f'Getting the playlist data...')
 
-    playlistData = getPlaylistData(MAIN_URL)
-    artistsList = playlistData['artists']
-    tracksList = playlistData['tracks']
-    totalTracks = playlistData['total']
-    playlistName = playlistData['playlistName']
+        playlistData = getPlaylistData(MAIN_URL)
+        artistsList = playlistData['artists']
+        tracksList = playlistData['tracks']
+        totalTracks = playlistData['total']
+        playlistName = playlistData['playlistName']
 
-    print(f'{Fore.LIGHTGREEN_EX}Success!{Fore.RESET}')
-    print(f'Processing the playlist data...')
+        print(f'{Fore.LIGHTGREEN_EX}Success!{Fore.RESET}')
+        print(f'Processing the playlist data...')
 
-    restrictedSymbols = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+        restrictedSymbols = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
 
-    playlistName_safe = playlistName
-    for symbol in restrictedSymbols:
-        if playlistName_safe.find(symbol) != -1:
-            playlistName_safe = playlistName_safe.replace(symbol, '#')
-    OUTPUT_PATH = Path.joinpath(PATH_TO_USER, 'Downloads', playlistName_safe)
-    os.makedirs(OUTPUT_PATH, exist_ok=True)
-
-    listFilePath: Path = Path.joinpath(OUTPUT_PATH, playlistName_safe).with_suffix('.txt')
-
-    if TEST:
-        print(listFilePath)
-
-    with open(listFilePath, 'w', encoding='utf-8') as file:
-        file.write(playlistName)
-        file.write('\n\n')
-        for index in range(playlistData['total']):
-            playlistData['artists'][index] = playlistData['artists'][index]
-            playlistData['tracks'][index] = playlistData['tracks'][index]
-            print(f'{playlistData['artists'][index]} - {playlistData['tracks'][index]}')
-            file.write(f'{playlistData['artists'][index]} - {playlistData['tracks'][index]}')
-            file.write('\n')
-
-    # split for list mode
-    # exits the script if list mode is True
-    if isInListMode:
-        os.startfile(listFilePath)
-        coverURL = getPlaylistCoverURL(MAIN_URL)
-        getImageFromURL(coverURL, OUTPUT_PATH)
-        sys.exit()
-
-    # Continuation if list mode is False
-    artistsList_safe = artistsList
-    tracksList_safe = tracksList
-    for index in range(totalTracks):
+        playlistName_safe = playlistName
         for symbol in restrictedSymbols:
-            if artistsList_safe[index].find(symbol) != -1:
-                artistsList_safe[index] = artistsList_safe[index].replace(symbol, '#')
-            if tracksList_safe[index].find(symbol) != -1:
-                tracksList_safe[index] = tracksList_safe[index].replace(symbol, '#')
+            if playlistName_safe.find(symbol) != -1:
+                playlistName_safe = playlistName_safe.replace(symbol, '#')
+        OUTPUT_PATH = Path.joinpath(PATH_TO_USER, 'Downloads', playlistName_safe)
+        os.makedirs(OUTPUT_PATH, exist_ok=True)
 
-    if playlistName_safe != playlistName:
-        playlistNameWasAltered = True
-    else:
-        playlistNameWasAltered = False
+        listFilePath: Path = Path.joinpath(OUTPUT_PATH, playlistName_safe).with_suffix('.txt')
 
-    if artistsList_safe != artistsList:
-        artistsListWasAltered = True
-    else:
-        artistsListWasAltered = False
+        if TEST:
+            print(listFilePath)
 
-    if tracksList_safe != tracksList:
-        tracksListWasAltered = True
-    else:
-        tracksListWasAltered = False
+        with open(listFilePath, 'w', encoding='utf-8') as file:
+            file.write(playlistName)
+            file.write('\n\n')
+            for index in range(playlistData['total']):
+                playlistData['artists'][index] = playlistData['artists'][index]
+                playlistData['tracks'][index] = playlistData['tracks'][index]
+                print(f'{playlistData['artists'][index]} - {playlistData['tracks'][index]}')
+                file.write(f'{playlistData['artists'][index]} - {playlistData['tracks'][index]}')
+                file.write('\n')
 
-    # Create full track names with artists and track names cuz why not
-    fullTrackNamesList = []
-    for INDEX in range(totalTracks):
-        fullTrackNamesList.append(f'{artistsList[INDEX]} - {tracksList[INDEX]}')
+        # split for list mode
+        # exits the script if list mode is True
+        if isInListMode:
+            os.startfile(listFilePath)
+            coverURL = getPlaylistCoverURL(MAIN_URL)
+            getImageFromURL(coverURL, OUTPUT_PATH)
+            sys.exit()
 
-    lostTracks = []
-    ytdlpSearchResults = []
-    for INDEX in range(totalTracks):
-        print(f'Serching for {Fore.LIGHTCYAN_EX}"{fullTrackNamesList[INDEX]}"{Fore.RESET} on YouTube...   ({INDEX + 1}/{totalTracks})')
-        ytdlpSearchResults.append(yt_dlp_search_best(fullTrackNamesList[INDEX], 3))
-        if ytdlpSearchResults[INDEX] is not None:
-            print(f'Found {Fore.CYAN}"{ytdlpSearchResults[INDEX]['title']}{Fore.RESET}"')
-            print(f'{Fore.LIGHTYELLOW_EX}Url{Fore.RESET}: {ytdlpSearchResults[INDEX]['url']}')
+        # Continuation if list mode is False
+        artistsList_safe = artistsList
+        tracksList_safe = tracksList
+        for index in range(totalTracks):
+            for symbol in restrictedSymbols:
+                if artistsList_safe[index].find(symbol) != -1:
+                    artistsList_safe[index] = artistsList_safe[index].replace(symbol, '#')
+                if tracksList_safe[index].find(symbol) != -1:
+                    tracksList_safe[index] = tracksList_safe[index].replace(symbol, '#')
+
+        if playlistName_safe != playlistName:
+            playlistNameWasAltered = True
         else:
-            print(f'{Fore.LIGHTRED_EX}Found nothing on YouTube!{Fore.RESET}\n'
-                  f'Adding to lost tracks and moving on...')
-            lostTracks.append(fullTrackNamesList[INDEX])
+            playlistNameWasAltered = False
 
-    ydl_opts = {
-        "quiet": False,
-    }
+        if artistsList_safe != artistsList:
+            artistsListWasAltered = True
+        else:
+            artistsListWasAltered = False
 
-    with YoutubeDL(ydl_opts) as ytdl:
+        if tracksList_safe != tracksList:
+            tracksListWasAltered = True
+        else:
+            tracksListWasAltered = False
+
+        # Create full track names with artists and track names cuz why not
+        fullTrackNamesList = []
+        for INDEX in range(totalTracks):
+            fullTrackNamesList.append(f'{artistsList[INDEX]} - {tracksList[INDEX]}')
+
+        lostTracks = []
+        ytdlpSearchResults = []
+        for INDEX in range(totalTracks):
+            print(f'Serching for {Fore.LIGHTCYAN_EX}"{fullTrackNamesList[INDEX]}"{Fore.RESET} on YouTube...   ({INDEX + 1}/{totalTracks})')
+            ytdlpSearchResults.append(yt_dlp_search_best(fullTrackNamesList[INDEX], 3))
+            if ytdlpSearchResults[INDEX] is not None:
+                print(f'Found {Fore.CYAN}"{ytdlpSearchResults[INDEX]['title']}{Fore.RESET}"')
+                print(f'{Fore.LIGHTYELLOW_EX}Url{Fore.RESET}: {ytdlpSearchResults[INDEX]['url']}')
+            else:
+                print(f'{Fore.LIGHTRED_EX}Found nothing on YouTube!{Fore.RESET}\n'
+                      f'Adding to lost tracks and moving on...')
+                lostTracks.append(fullTrackNamesList[INDEX])
+
+        ydl_opts = {
+            "quiet": False,
+            "f": 'ba'
+        }
+
+        with YoutubeDL(ydl_opts) as ytdl:
+            for index in range(len(ytdlpSearchResults)):
+                ytdl.download(ytdlpSearchResults[index]['url'])
+
+    elif 'album' in MAIN_URL:
         ...
-
-elif 'album' in MAIN_URL:
-    ...

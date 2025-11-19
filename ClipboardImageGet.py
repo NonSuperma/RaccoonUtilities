@@ -1,5 +1,5 @@
 from Raccoon.mediaUtilities import get_media_dimentions
-from Raccoon.windowsUtilities import askExit
+from Raccoon.windowsUtilities import ask_exit
 from Raccoon.imageUtilities import scale_image
 from pathlib import Path
 from tkinter import Tk
@@ -51,7 +51,7 @@ def main():
 
     if image is None:
         show_console()
-        askExit("No image in clipboard nigga!")
+        ask_exit("No image in clipboard nigga!")
 
     downloads_path = Path.home() / 'Downloads'
     filename = 'clipboard'

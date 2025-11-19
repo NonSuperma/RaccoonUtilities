@@ -195,7 +195,7 @@ if __name__ == '__main__':
         # Check for yt-dlp and download it if not present
         def yt_dlpFileCheck():
             script_dir = Path(__file__).resolve().parent
-            if windowsUtilities.fileIsInDir('yt-dlp.exe', script_dir):
+            if windowsUtilities.file_is_in_dir('yt-dlp.exe', script_dir):
                 print(f'{Fore.GREEN}Found yt-dlp!{Fore.RESET}')
             else:
 

@@ -36,8 +36,8 @@ def createFullAlbum(image_path, audio_paths, album_name):
 
 
 if __name__ == "__main__":
-	imagePath = RacoonWT.winFilePath("Album cover")
-	audioPaths = RacoonWT.winFilesPath("Audio files")
+	imagePath = RacoonWT.win_file_path("Album cover")
+	audioPaths = RacoonWT.win_files_path("Audio files")
 
 	workingFolderPath = audioPaths[0][:audioPaths[0].rfind("\\")]
 	workingFolderName = workingFolderPath[workingFolderPath.rfind("\\") + 1:]

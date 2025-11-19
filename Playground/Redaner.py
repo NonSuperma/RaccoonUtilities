@@ -19,7 +19,7 @@ def dotIndex(name: str) -> str:
 	return name
 
 
-filePaths = winFilesPath()
+filePaths = win_files_path()
 fileCount = len(filePaths)
 
 fileNames = []

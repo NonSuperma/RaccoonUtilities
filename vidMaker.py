@@ -16,9 +16,9 @@ import os
 def main():
     global folderPath, mp4FinalPath
     try:
-        flacFilePaths = winFilesPath('Audio', 'audio')
+        flacFilePaths = win_files_path('Audio', 'audio')
     except MissingInputError:
-        askExit(f'{Fore.RED}Audio selection window closed.')
+        ask_exit(f'{Fore.RED}Audio selection window closed.')
 
     folderPath = flacFilePaths[0].parent
 
@@ -41,7 +41,7 @@ def main():
     # folderPath.parent.rename(Path.joinpath(folderPath.parent.parent, folderPath_safe.parent.name))
 
     try:
-        coverPath = winFilePath('Cover', 'image', initialDir=folderPath_safe)
+        coverPath = win_file_path('Cover', 'image', initialDir=folderPath_safe)
     except MissingInputError:
 
         for index in range(trackCount):
@@ -49,9 +49,9 @@ def main():
 
         folderPath_safe.rename(Path.joinpath(folderPath_safe.parent, folderPath.name))
 
-        askExit(f'{Fore.RED}Cover image selection window closed.')
+        ask_exit(f'{Fore.RED}Cover image selection window closed.')
 
-    coverDimentions = ScaleToEven(coverPath).dimensions
+    coverDimentions = scale_to_even(coverPath).dimensions
     if coverDimentions[0] > 1000 and coverDimentions[1] > 1000 and (coverDimentions != [1000, 1000]):
         coverPath = scale_image(coverPath, '1000:1000', remove_old=False)
     # userChoice = input(f'Scale album cover to 1000x1000? Enter=Yes, n=No\n'
