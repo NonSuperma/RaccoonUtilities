@@ -17,6 +17,7 @@ def seconds_to_hhmmss(s: float) -> str:
 
 
 def hhmmss_to_seconds(timestamp: str) -> float:
+    sign = -1 if '-' in timestamp else 1
     parts = timestamp.split(':')
     if len(parts) != 3:
         raise ValueError(f"Invalid format: expected 'HH:MM:SS.sss', got '{timestamp}'")
@@ -25,7 +26,7 @@ def hhmmss_to_seconds(timestamp: str) -> float:
     minutes = int(parts[1])
     seconds = float(parts[2])
 
-    return hours * 3600 + minutes * 60 + seconds
+    return hours * 3600 + minutes * 60 + seconds * sign
 
 
 def add_times(time_list: list[str] | list[float]) -> str:
@@ -116,7 +117,7 @@ def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
     ffprobeOutputJson_video = json.loads(ffprobeOutput_video.stdout)
 
     results = {}
-    results.update({'format': ffprobeOutputJson_format})
+    results.update(ffprobeOutputJson_format)
     results.update({'video': ffprobeOutputJson_video['streams']})
     results.update({'audio': ffprobeOutputJson_audio['streams']})
 
