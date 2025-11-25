@@ -1,10 +1,8 @@
-from Raccoon.errors import *
 from pathlib import Path
 from typing import Dict, Any
 import subprocess
 import json
 import sys
-import os
 
 
 def seconds_to_hhmmss(s: float) -> str:
@@ -37,18 +35,10 @@ def add_times(time_list: list[str] | list[float]) -> str:
             total += t
         else:
             total += hhmmss_to_seconds(t)
-    return seconds_to_hhmmss(total)
-
-
-def resource_path(relative_path: str) -> str:
-
-    if getattr(sys, "frozen", False):
-        # Running in a PyInstaller bundle
-        base_path = sys._MEIPASS
+    if _format == 's':
+        return total
     else:
-        # Running in normal Python environment
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+        return seconds_to_hhmmss(total)
 
 
 def console_clear_n(n: int) -> None:
@@ -60,7 +50,7 @@ def console_clear_n(n: int) -> None:
 
 def get_bundled_file_path(file_name: str) -> Path:
     """
-    Finds the path to the bundled ffmpeg.exe
+    Finds the path to the bundled file, for example 'ffmpeg.exe'
     """
     if getattr(sys, 'frozen', False):
         # in a bundle
