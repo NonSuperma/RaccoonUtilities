@@ -10,6 +10,12 @@ import subprocess
 import sys
 import os
 
+# REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT
+#
+# Converts any audio files to flac, then concads it, then turns it into mp3, then into mp4
+#
+# REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT REDUNDANT
+
 
 def main():
 	init(autoreset=True)
@@ -114,7 +120,7 @@ def main():
 			  f'to .flac...  '
 			  f'{Fore.LIGHTGREEN_EX}({index + 1}/{len(audioFilesPaths)}){Fore.RESET}')
 		try:
-			ffmpegOutput_converter = sp.run(f'ffmpeg '
+			ffmpegOutput_converter = subprocess.run(f'ffmpeg '
 											f'-loglevel fatal '
 											f'-y '
 											f'-i "{audioPath}" '
@@ -136,7 +142,7 @@ def main():
 	# Concad audio files
 	print(f'\n{Fore.LIGHTCYAN_EX}[Concad]{Style.RESET_ALL} Concading audio files into one...  ')
 	try:
-		ffmpegOutput_concad = sp.run(f'ffmpeg '
+		ffmpegOutput_concad = subprocess.run(f'ffmpeg '
 									 f'-y '
 									 f'-loglevel fatal '
 									 f'-f concat '
