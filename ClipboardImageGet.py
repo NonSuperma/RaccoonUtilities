@@ -1,12 +1,11 @@
-from pathlib import Path
 from tkinter import Tk
 from PIL import ImageGrab
+from pathlib import Path
 import subprocess
 import sys
 import ctypes
 import time
 import msvcrt
-import os.path
 
 
 def scale_image(file_path: Path, new_dimentions: list[int], remove_old=False):
@@ -21,15 +20,15 @@ def scale_image(file_path: Path, new_dimentions: list[int], remove_old=False):
     scale = f'{str(new_dimentions[0])}:{str(new_dimentions[1])}'
 
     ffmpegOutput = subprocess.run(
-                                  f'ffmpeg '
-                                  f'-loglevel fatal '
-                                  f'-y '
-                                  f'-i "{file_path}" '
-                                  f'-vf scale={scale} '
-                                  f'-frames:v 1 '
-                                  f'-update 1 '
-                                  f'"{new_file_path}"'
-                                 )
+        f'ffmpeg '
+        f'-loglevel fatal '
+        f'-y '
+        f'-i "{file_path}" '
+        f'-vf scale={scale} '
+        f'-frames:v 1 '
+        f'-update 1 '
+        f'"{new_file_path}"'
+    )
     if ffmpegOutput.returncode != 0:
         raise FfmpegGeneralError
 
@@ -41,7 +40,6 @@ def scale_image(file_path: Path, new_dimentions: list[int], remove_old=False):
 
 def ask_exit(message: str = '', timeout: int = 5) -> None:
     print(message)
-    print(f'Press any key to exit (or wait {timeout} more seconds)')
     start = time.monotonic()
     last_shown = None
 
@@ -54,39 +52,39 @@ def ask_exit(message: str = '', timeout: int = 5) -> None:
         remaining = max(0, int(timeout - elapsed))
 
         if remaining != last_shown:
-            print(f"\033[F\033[K"  # Move curson up, to beginning of line and clear line
+            print(f"\r" 
                   f"Press any key to exit "
-                  f"(or wait {remaining} more seconds)…")
+                  f"(or wait {remaining} more seconds)…", end=' ')
             last_shown = remaining
 
         if elapsed >= timeout:
             break
 
-        time.sleep(0.05)
+        time.sleep(0.005)
 
     sys.exit()
 
 
 def get_media_dimentions(file_path) -> list[int] | None:
-	try:
-		ffprobeOutput = subprocess.run(
-			f'ffprobe '
-			f'-v error '
-			f'-select_streams v:0 '
-			f'-show_entries stream=width,height -of csv=s=x:p=0 '
-			f'"{file_path}"',
-			shell=True, capture_output=True, text=True, check=True)
-	except subprocess.CalledProcessError:
-		return None
-	else:
-		dimentions = [int(dimention) for dimention in ffprobeOutput.stdout.strip().split('x')]
-	return dimentions
+    try:
+        ffprobeOutput = subprocess.run(
+            f'ffprobe '
+            f'-v error '
+            f'-select_streams v:0 '
+            f'-show_entries stream=width,height -of csv=s=x:p=0 '
+            f'"{file_path}"',
+            shell=True, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError:
+        return None
+    else:
+        dimentions = [int(dimention) for dimention in ffprobeOutput.stdout.strip().split('x')]
+    return dimentions
 
 
 def count_open_explorer_downloads_windows():
     import pygetwindow as gw
     windows = gw.getWindowsWithTitle('')
-    explorer_windows = [window for window in windows if 'Downloads' in window.title]
+    explorer_windows = [window for window in windows if 'Pobrane' in window.title or 'Downloads' in window.title]
     return len(explorer_windows)
 
 
@@ -104,19 +102,18 @@ def hide_console():
     ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 
-def crop_square_from_1920x1080_media(file_path, output_name) -> None:
-    downloads_path = os.path.join(os.path.expanduser("~"), "Downloads")
+def crop_square_from_1920x1080_media(file_path: Path, output_name: str) -> None:
+    output_path = file_path.parent / output_name
     subprocess.run(f'ffmpeg '
                    f'-y '
                    f'-i "{file_path}" '
                    f'-vf "crop=1080:1080:420:0" '
-                   f'"{downloads_path}\\{output_name}"',
+                   f'"{output_path}"',
                    shell=True, capture_output=True)
     return None
 
 
 def main():
-    hide_console()
     hide_console()
     image = ImageGrab.grabclipboard()
 
@@ -142,7 +139,7 @@ def main():
         crop_square_from_1920x1080_media(pathToFile, f'clipboard__square.png')
         scale_image(Path(f"{downloads_path}\\clipboard__square.png"), [500, 500])
 
-    if count_open_explorer_downloads_windows() < 1:
+    if count_open_explorer_downloads_windows() == 0:
         root = Tk()
         root.withdraw()
         root.lift()
