@@ -41,7 +41,7 @@ def main():
     # folderPath.parent.rename(Path.joinpath(folderPath.parent.parent, folderPath_safe.parent.name))
 
     try:
-        coverPath = win_file_path('Cover', 'image', initialDir=folderPath_safe)
+        coverPath = win_file_path('Cover', 'image', initial_dir=folderPath_safe)
     except MissingInputError:
 
         for index in range(trackCount):
@@ -53,7 +53,7 @@ def main():
 
     coverDimentions = scale_to_even(coverPath).dimensions
     if coverDimentions[0] > 1000 and coverDimentions[1] > 1000 and (coverDimentions != [1000, 1000]):
-        coverPath = scale_image(coverPath, '1000:1000', remove_old=False)
+        coverPath = scale_image(coverPath, [1000, 1000], remove_old=False)
     # userChoice = input(f'Scale album cover to 1000x1000? Enter=Yes, n=No\n'
     # 				   f': ')
     # if userChoice != 'n':
