@@ -1,10 +1,8 @@
-from Raccoon.errors import *
 from pathlib import Path
 from typing import Dict, Any
 import subprocess
 import json
 import sys
-import os
 
 
 def seconds_to_hhmmss(s: float) -> str:
@@ -17,6 +15,7 @@ def seconds_to_hhmmss(s: float) -> str:
 
 
 def hhmmss_to_seconds(timestamp: str) -> float:
+    sign = -1 if '-' in timestamp else 1
     parts = timestamp.split(':')
     if len(parts) != 3:
         raise ValueError(f"Invalid format: expected 'HH:MM:SS.sss', got '{timestamp}'")
@@ -25,7 +24,7 @@ def hhmmss_to_seconds(timestamp: str) -> float:
     minutes = int(parts[1])
     seconds = float(parts[2])
 
-    return hours * 3600 + minutes * 60 + seconds
+    return hours * 3600 + minutes * 60 + seconds * sign
 
 
 def add_times(time_list: list[str] | list[float]) -> str:
@@ -36,18 +35,10 @@ def add_times(time_list: list[str] | list[float]) -> str:
             total += t
         else:
             total += hhmmss_to_seconds(t)
-    return seconds_to_hhmmss(total)
-
-
-def resource_path(relative_path: str) -> str:
-
-    if getattr(sys, "frozen", False):
-        # Running in a PyInstaller bundle
-        base_path = sys._MEIPASS
+    if _format == 's':
+        return total
     else:
-        # Running in normal Python environment
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
+        return seconds_to_hhmmss(total)
 
 
 def console_clear_n(n: int) -> None:
@@ -59,7 +50,7 @@ def console_clear_n(n: int) -> None:
 
 def get_bundled_file_path(file_name: str) -> Path:
     """
-    Finds the path to the bundled ffmpeg.exe
+    Finds the path to the bundled file, for example 'ffmpeg.exe'
     """
     if getattr(sys, 'frozen', False):
         # in a bundle
@@ -116,7 +107,7 @@ def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
     ffprobeOutputJson_video = json.loads(ffprobeOutput_video.stdout)
 
     results = {}
-    results.update({'format': ffprobeOutputJson_format})
+    results.update(ffprobeOutputJson_format)
     results.update({'video': ffprobeOutputJson_video['streams']})
     results.update({'audio': ffprobeOutputJson_audio['streams']})
 
