@@ -130,6 +130,10 @@ def update_ytdlp():
 
 
 def main():
+
+	CLEARLINE = '\033[K'  # from the cursor to the right
+
+
 	os.system("mode con: cols=80 lines=20")
 	os.system("title Stream Recorder")
 
@@ -174,11 +178,21 @@ def main():
 				sys.stdout.write("\033[F\033[K")
 			urlInput_count += 1
 
+	if 'lemoncams.com' in url and 'chaturbate' in url:
+		url = url.replace('lemoncams.com/chaturbate', 'chaturbate.com')
+	if 'www.lemoncams.com/bongacams' in url:
+		url = url.replace('www.lemoncams.com/bongacams', 'bongacams.com')
+
 	print(f"{Fore.CYAN}Fetching stream metadata...{Fore.RESET}")
 	meta = get_stream_info(yt_dlp_exe, url)
 
 	if not meta:
 		print(f"{Fore.RED}Error: Could not fetch info.{Fore.RESET}")
+		streamer_name = None
+		stream_title = None
+		resolution = None
+		vcodec = None
+		acodec = None
 	else:
 		streamer_name = meta.get('id') or meta.get('display_id')
 		stream_title = meta.get('title')
@@ -307,7 +321,7 @@ def main():
 								stream_ended = True
 								user_stopped = True
 
-							print(f'\r{Fore.YELLOW}Stream disconnected [{reconnecting_count}]. Reconnecting in 2s...{Fore.RESET}  ', end='', flush=True)
+							print(f'\r{Fore.YELLOW}Stream disconnected [{reconnecting_count}]. Reconnecting in 2s...{Fore.RESET}{CLEARLINE}', end='', flush=True)
 							time.sleep(2)
 							reconnecting_count += 1
 							break
@@ -333,7 +347,7 @@ def main():
 						if key.lower() == b'q':
 							if recording:
 								recording = False
-								print(f"\n\n{Fore.YELLOW}Paused recording...{Fore.RESET}")
+								print(f"\n{Fore.YELLOW}Paused recording...{Fore.RESET}")
 
 							else:
 								recording = True
