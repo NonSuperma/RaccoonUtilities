@@ -41,5 +41,10 @@
 /data.json
 /ControlMyMonitor.exe
 /MiscScripts/ffmpeg.exe
-/SourceFiles/Amba_Base_Mode.ico
-/SourceFiles/images.steamusercontent.ico
+/mpv.exe
+/MiscScripts/stream_downloader.ini
+/MiscScripts/bazamuzyka.py
+/stream_downloader.ini
+/MiscScripts/test.py
+/MiscScripts/ffprobe.exe
+/MiscScripts/ffplay.exe
