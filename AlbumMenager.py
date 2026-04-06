@@ -10,6 +10,7 @@ import sys
 import json
 from pathlib import Path
 
+INFO = f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET}'
 
 def has_video_stream(file_path):
     cmd = [
@@ -25,7 +26,7 @@ def has_video_stream(file_path):
 
 def user_album_name_choice_dialogue(folder_name: str) -> str:
     userChoice = input(
-        f'{Fore.LIGHTCYAN_EX}[Info]{Fore.RESET} The selected songs are in a folder called {Fore.GREEN}{folder_name}{Fore.RESET}\n'
+        f'{INFO} The selected songs are in a folder called {Fore.GREEN}{folder_name}{Fore.RESET}\n'
         f'       Press {Back.BLACK}ENTER{Back.RESET} to use that folder as the album name, or input the album name manually\n'
         f'       {Fore.LIGHTBLUE_EX}[]{Fore.RESET} gets converted into {Fore.GREEN}{folder_name}{Fore.RESET}\n'
         f'       {Fore.LIGHTBLUE_EX}--full{Fore.RESET} removes {Fore.LIGHTBLUE_EX}[Full Album]{Fore.RESET} from the final name\n'
@@ -93,6 +94,8 @@ def main():
                       f'("No" will let you choose the cover file manually)')
                 userChoice = input(f':').lower()
 
+                console_clear_n(8)
+
                 cover_path = None
                 cover_extracted = False
                 if userChoice == 'y':
@@ -114,7 +117,7 @@ def main():
 
                 else:
                     cover_path = win_file_path('Cover', 'image')
-
+                    cover_filename = cover_path.name
 
             if len(format_names) > 1:
                 print('Mixed formats')
@@ -122,42 +125,49 @@ def main():
                 format_name = format_names[0]
                 match format_name:
                     case 'flac':
-                        print(f'{Fore.LIGHTGREEN_EX}All files are FLAC{Fore.RESET}')
+                        print(f'{INFO} All files are FLAC')
 
                         folder_name = folder_path.name
                         album_name = user_album_name_choice_dialogue(folder_name)
 
-                        print(f'Album filename chosen: {Fore.LIGHTBLUE_EX}"{album_name}"{Fore.RESET}\n')
+                        print(f'{INFO} Album filename chosen: {Fore.LIGHTBLUE_EX}"{album_name}"{Fore.RESET}\n')
 
-                        # with open(workingFolderPath / 'audio_input_list.txt', 'w+',
-                        #           encoding='utf-8') as audio_input_list:
-                        #     for tempAudioPath in tempAudioPaths:
-                        #         audio_input_list.write(f"file '{str(tempAudioPath)}'\n")
+                        temp_track_file_path = Path.joinpath(folder_path, 'temp_track_file.txt')
 
-                        temp_track_file = Path.joinpath(folder_path, 'temp_track_file.txt')
-
-                        with open(temp_track_file, 'w+', encoding='utf-8') as file:
+                        with open(temp_track_file_path, 'w+', encoding='utf-8') as file:
                             for track_path in track_paths:
-                                file.write(f'file "{str(track_path)}"\n')
-
-
+                                file.write(f"file '{str(track_path.as_posix())}'\n")
 
                         concaded_track_path = folder_path / f'{album_name}.flac'
+
                         cmd = ['ffmpeg', '-y',
-                               'loglevel', 'fatal'
-                               '-f', 'concad',
+                               '-loglevel', 'fatal',
+                               '-f', 'concat',
                                '-safe', '0',
-                               '-i', ]
+                               '-i', str(temp_track_file_path),
+                               '-c', 'copy',
+                               str(concaded_track_path)]
 
-                        # subprocess.run(f'ffmpeg '
-                        #                f'-y '
-                        #                f'-loglevel fatal '
-                        #                f'-f concat '
-                        #                f'-safe 0 '
-                        #                f'-i "{str(workingFolderPath.joinpath('audio_input_list.txt'))}" '
-                        #                f'"{finalConcadFilePath}"',
-                        #                capture_output=True)
+                        try:
+                            print(f'{Fore.LIGHTYELLOW_EX}Concating...{Fore.RESET}', end='')
+                            result = subprocess.run(
+                                cmd,
+                                capture_output=True,
+                                text=True,
+                                check=True
+                            )
+                        except subprocess.CalledProcessError as e:
+                            ask_exit(f"{Fore.RED}Error running ffmpeg:{Style.RESET_ALL}\n{e.stderr}", 30)
+                        finally:
+                            print(f'{Fore.LIGHTGREEN_EX}{mvb_clrln}Done!{Fore.RESET}\n')
 
+
+
+
+                        if cover_extracted:
+                            cover_path.unlink()
+                        temp_track_file_path.unlink()
+                        concaded_track_path.unlink()
                     case 'mp3':
                         print(f'\n{Fore.LIGHTGREEN_EX}All files are MP3{Fore.RESET}')
 
@@ -184,16 +194,12 @@ def main():
                         print(f'{Fore.LIGHTYELLOW_EX}[Warning] Unaccounted audio file format. May produce unexpected results\n'
                               f'(Be sure to understand lossy conversion){Fore.RESET}')
 
-            if cover_extracted:
-                cover_path.unlink()
+
 
         case '2':  # Tracks to mp4
             ...
         case '3':  # Mp3
             ...
-
-
-
 
 
 if __name__ == '__main__':
