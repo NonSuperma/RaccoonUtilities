@@ -218,7 +218,7 @@ def win_files_path(message: str = '', filetypes=None, initialDir: Path = None) -
 	if filetypes is not None:
 		if filetypes == 'audio':
 			selection = [
-				("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus"),
+				("Audio files", "*.MP3 *.AAC *.FLAC *.WAV *.PCM *.M4A *.opus *.ogg"),
 				("MP3 files", "*.MP3"),
 				("AAC files", "*.AAC"),
 				("FLAC files", "*.FLAC"),
@@ -226,6 +226,7 @@ def win_files_path(message: str = '', filetypes=None, initialDir: Path = None) -
 				("PCM files", "*.PCM"),
 				("M4A files", "*.M4A"),
 				("OPUS files", "*.opus"),
+				("OGG files", "*.ogg"),
 			]
 			kwargs["filetypes"] = selection  # type: ignore[arg-type]
 		elif filetypes == 'image':
