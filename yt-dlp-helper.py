@@ -142,6 +142,11 @@ if any(result in primaryUrl for result in playlistFlags):
 # Check if URL is a YouTube radio
 if 'start_radio' in primaryUrl:
 	primaryUrl = primaryUrl[:primaryUrl.rfind('&list')]
+	isAPlaylist = False
+
+console_clear_n(3)
+print(f'{Fore.LIGHTGREEN_EX}Found a valid url link in the clipboard!{Fore.RESET}\n'
+	  f'{Fore.LIGHTCYAN_EX}{primaryUrl}{Fore.RESET} - using that one.\n')
 
 
 # Define option dialogue
