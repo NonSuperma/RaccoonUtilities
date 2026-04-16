@@ -9,7 +9,8 @@ from Raccoon.errors import *
 import subprocess
 
 
-def convert_file(file_path: Path, delete_old: bool = False): -> :
+def convert_file(file_path: Path, delete_old: bool = False):
+	...
 
 
 def convert_files(file_paths: list[Path], new_extension: str) -> None:
