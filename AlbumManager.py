@@ -205,11 +205,13 @@ def main():
                             print(f'{mvb_clrln}{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}\n')
 
                         shutil.rmtree(temp_folder_path)
+
                     case 'mp3':
                         print(f'\n{Fore.LIGHTGREEN_EX}MP3 -> MP4{Fore.RESET}')
 
                     case 'ogg':
                         print(f'{Fore.LIGHTGREEN_EX}OGG -> MP4{Fore.RESET}')
+
                     case _:
                         print(
                             f'{Fore.LIGHTYELLOW_EX}[Warning] Unaccounted audio file format. May produce unexpected results\n'
@@ -397,15 +399,6 @@ def main():
                         ...
             ask_exit(f'{mvb_clrln}{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}')
 
-            # bitrate_avg = 0
-            # for track_data in tracks_data:
-            #     bitrate_avg += track_data['audio'][0]['bit_rate']
-            # bitrate_avg /= len(track_paths)
-
-            # print(f'{Fore.LIGHTCYAN_EX}'
-            #       f'-----------------------------\n'
-            #       f'Average bitrate: {int(bitrate_avg)}\n'
-            #       f'-----------------------------\n')
 
 
 
