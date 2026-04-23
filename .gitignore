@@ -5,9 +5,9 @@
 /phantomjs.exe
 /main.spec
 /file_converter.spec
-/ffprobe.exe
-/ffplay.exe
-/ffmpeg.exe
+/SourceFiles/ffprobe.exe
+/SourceFiles/ffplay.exe
+/SourceFiles/ffmpeg.exe
 /code_testing.spec
 /albumMaker.spec
 /4_4.ico
@@ -24,7 +24,7 @@
 /yt-dlpFAST.ico
 /V3Test.py
 /icons/4-1.ico
-/yt-dlp.exe
+/SourceFiles/yt-dlp.exe
 /Playground.py
 /5-1.ico
 /.cache
@@ -48,4 +48,5 @@
 /MiscScripts/test.py
 /MiscScripts/ffprobe.exe
 /MiscScripts/ffplay.exe
+/output_json.json
 /MiscScripts/ComfyUI_Cleanup.py
