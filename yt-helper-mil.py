@@ -26,48 +26,61 @@ def main():
 
     # Update to latest stable yt-dlp
     print(f'{Fore.LIGHTCYAN_EX}Checking if yt-dlp.exe is up to date...{Fore.RESET}')
-    try:
-        process = subprocess.Popen(
-            ['yt-dlp', '--update-to', 'nightly'],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            text=True,
-        )
-        line_count = 0
-        updated = False
-        version = None
 
-        for line in iter(process.stdout.readline, ''):
-            print(f'{Fore.LIGHTYELLOW_EX}{line.strip()}{Fore.RESET}')
+    if get_bundled_file_path('SourceFiles/yt-dlp.exe'):
+        try:
+            process = subprocess.Popen(
+                ['yt-dlp', '--update-to', 'nightly'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                universal_newlines=True,
+                text=True,
+            )
+            line_count = 0
+            updated = False
+            version = None
 
-            if 'ERROR' in line:
-                raise ConnectionError
-            if 'Updating' in line:
-                updated = True
-            if 'Current version' in line:
-                version = line[len('Current version: '):]
-            if 'Latest version' in line:
-                version = line[len('Latest version: '):]
+            for line in iter(process.stdout.readline, ''):
+                print(f'{Fore.LIGHTYELLOW_EX}{line.strip()}{Fore.RESET}')
 
-            line_count += 1
-        console_clear_n(line_count)
+                if 'ERROR' in line:
+                    raise ConnectionError
+                if 'Updating' in line:
+                    updated = True
+                if 'Current version' in line:
+                    version = line[len('Current version: '):]
+                if 'Latest version' in line:
+                    version = line[len('Latest version: '):]
 
-        if updated:
-            print(f'{Fore.LIGHTGREEN_EX}'
-                  f'Updated to: {version}\n'
-                  f'{Fore.RESET}')
-        else:
-            print(f'{Fore.LIGHTGREEN_EX}'
-                  f'Yt-dlp is up to date [{str(version).strip()}]\n'
-                  f'{Fore.RESET}')
-    except ConnectionError:
-        print(f'{Fore.LIGHTRED_EX}Error updating yt-dlp to newest version!!!{Fore.RESET}')
-        decision_temp = input(f'Continue with the current version? '
-                              f'(It is highly recommended to abort and manually update yt-dlp to latest stable version)\n'
-                              f'y/n\n: ')
-        if decision_temp.lower() == 'n':
-            ask_exit('')
+                line_count += 1
+            console_clear_n(line_count)
+
+            if updated:
+                print(f'{Fore.LIGHTGREEN_EX}'
+                      f'Updated to: {version}\n'
+                      f'{Fore.RESET}')
+            else:
+                print(f'{Fore.LIGHTGREEN_EX}'
+                      f'Yt-dlp is up to date [{str(version).strip()}]\n'
+                      f'{Fore.RESET}')
+        except ConnectionError:
+            print(f'{Fore.LIGHTRED_EX}Error updating yt-dlp to newest version!!!{Fore.RESET}')
+            decision_temp = input(f'Continue with the current version? '
+                                  f'(It is highly recommended to abort and manually update yt-dlp to latest stable version)\n'
+                                  f'y/n\n: ')
+            if decision_temp.lower() == 'n':
+                ask_exit('')
+    else:
+        while True:
+            input(f'\n{Fore.RED} No yt-dlp detected!!{Fore.RESET}\n'
+                  f'Put yt-dlp.exe in the folder the yt-dlp-mil.exe is in, then press Enter\n'
+                  f'Get the latest nightly version from:\n'
+                  f'https://github.com/yt-dlp/yt-dlp-nightly-builds/releases')
+            if get_bundled_file_path('SourceFiles/yt-dlp.exe'):
+                tries = 0
+                print(f'Still no yt-dlp.exe found, the program can\'t continue. Try again or report this as a bug', end='')
+                return False
+
 
     # Parse config
     config = configparser.ConfigParser(allow_no_value=True, delimiters='=')
