@@ -10,12 +10,12 @@ import os
 
 
 def resource_path(relative_path):
-    base_path = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    base_path = getattr(sys, "_MEIPASS", os.path.abspath(".."))
     return Path.joinpath(base_path, relative_path)
 
 
 def play_success_sound() -> None:
-    sound_file = resource_path('SourceFiles/au5-1.mp3')
+    sound_file = resource_path('../SourceFiles/au5-1.mp3')
     playsound(sound_file)
 
 

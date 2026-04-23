@@ -154,7 +154,7 @@ def file_exists_without_extension(file_path: Path) -> bool:
 if __name__ == '__main__':
     TEST = False
 
-    with open('Spotify_info.json', 'r') as f:
+    with open('../Spotify_info.json', 'r') as f:
         playlistData = json.load(f)
 
     CLIENT_SECRET: str = playlistData['client_secret'].strip()
