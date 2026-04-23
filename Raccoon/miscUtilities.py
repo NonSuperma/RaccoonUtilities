@@ -48,7 +48,7 @@ def console_clear_n(n: int) -> None:
     sys.stdout.flush()
 
 
-def get_bundled_file_path(file_name: str) -> Path:
+def get_bundled_file_path(file_name: str) -> Path | None:
     """
     Finds the path to the bundled file, for example 'ffmpeg.exe'
     """
@@ -60,9 +60,12 @@ def get_bundled_file_path(file_name: str) -> Path:
     else:
         # normal .py script
         # Assume ffmpeg is in the system's PATH
-        file_path = file_name
+        file_path = Path(file_name)
 
-    return Path(file_path)
+    if file_path.is_file():
+        return file_path
+    else:
+        return None
 
 
 def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
