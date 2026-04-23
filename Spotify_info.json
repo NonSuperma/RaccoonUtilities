@@ -1,6 +1,6 @@
 {
   "client_secret": "secret",
-"client_id": "id",
-"redirect_uri": "http://127.0.0.1:5555/callback"
+  "client_id": "id",
+  "redirect_uri": "http://127.0.0.1:5555/callback"
 }
 
