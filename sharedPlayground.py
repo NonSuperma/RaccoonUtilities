@@ -1,292 +1,89 @@
-from itertools import count
-from os.path import exists
-from Raccoon.windowsUtilities import *
+from Raccoon.errors import *
 from Raccoon.audioUtilities import *
 from Raccoon.imageUtilities import *
 from Raccoon.mediaUtilities import *
 from Raccoon.miscUtilities import *
-from Raccoon.errors import *
-import validators
-import sys
-import json
+from Raccoon.windowsUtilities import *
+from rich.console import Console
+from rich.panel import Panel
 import subprocess
-from hashlib import file_digest
+import time
+import msvcrt
+import sys
+import configparser
 from pathlib import Path
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-from colorama import init, Fore, Back, Style, just_fix_windows_console
-import requests
-import os
-from tqdm import tqdm
-import pyperclip
+import json
+from colorama import Fore
 
-mp3 = 'mp3'
-strip = 'strip'
-data = 'data'
-concad = 'concad'
-flactomp3 = 'flactomp3'
-mp3tomp4 = 'mp3tomp4'
-xtoflac = 'xtoflac'
-mode = 84
+mvb_clrln = '\r\033[2K'
 
-if mode == 84:
-    l = ['test4', 'test1', 'test', 1]
-    print(l)
-    l.pop(l.index('test'))
-    print(l)
 
-if mode == xtoflac:
-    audioPath = win_file_path('audio')
-    outputPath = audioPath.with_suffix('.flac')
-    outputName = outputPath.name
+def subprocess_run_timecount(cmd, message: str = 'Running...', **kwargs):
+    start_time = time.time()
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, **kwargs)
 
-    subprocess.run(f'ffmpeg '
-                   f'-i "{audioPath}" '
-                   f'-map 0 '
-                   f'-c:a flac '
-                   f'-sample_fmt s16 '
-                   f'-ar 44100 '
-                   f'-map_metadata 0 -id3v2_version 3 '
-                   f'-c:v copy '
-                   f'"{outputPath}"')
+    while True:
+        current_time = time.time()
+        if process.poll() is not None:
+            print(f'{mvb_clrln}{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}')
+            break
 
-if mode == 4:
-    videoPath = win_file_path('video')
-    audioPath = win_file_path('audio', filetypes='audio')
-    outputPath = videoPath.parent.joinpath('output.mp4')
-    ffmpegOutput = subprocess.run(
-        f'ffmpeg '
-        f'-loglevel fatal '
-        f'-y '
-        f'-i "{videoPath}" '
-        f'-i "{audioPath}" '
-        f'-map 0:v:0 -map 1:a:0 '
-        f'-c:v copy -c:a copy '
-        f'-movflags +faststart '
-        f'-shortest '
-        f'"{outputPath}"'
-    )
+        elapsed = round(current_time - start_time, 1)
+        print(f' {Fore.LIGHTYELLOW_EX}{message} ({elapsed}s){Fore.RESET}', end='\r', flush=True)
+        time.sleep(0.1)
 
-if mode == 3:
-    coverPath = win_file_path()
-    audioPath = win_file_path('audio')
-    subprocess.run(
-        f'ffmpeg '
-        f'-loglevel fatal '
-        f'-y '
-        f'-loop 1 '
-        f'-framerate 1 '
-        f'-i "{coverPath}" '
-        f'-i "{audioPath}" '
-        f'-map 0:v:0 -map 1:a:0 '
-        f'-c:v libx264 -crf 30 -tune stillimage '
-        f'-c:a copy '
-        f'-shortest '
-        f'-movflags +faststart '
-        f'-map_metadata 1 '
-        f'-id3v2_version 3 -write_id3v1 1 '
-        f'-vf "format=yuv420p" '
-        f'-r 1 '
-        f'"{audioPath.with_suffix(f'.mp4')}"'
-    )
 
-if mode == 2:
-    filePath = win_file_path(filetypes='audio')
-    subprocess.run(f'ffmpeg '
-                   f'-y '
-                   f'-i "{filePath}" '
-                   f'-af "rubberband=tempo=0.55, aecho=0.8:0.9:1000:0.3, lowpass=f=8000" '
-                   f'"{filePath.parent.joinpath(str(filePath.stem) + ' (slowed)' + str(filePath.suffix))}')
-if mode == 1:
-    filePath = win_file_path(filetypes='audio')
-    subprocess.run(f'ffmpeg '
-                   f'-y '
-                   f'-i "{filePath}" '
-                   f'-af "rubberband=tempo=0.633" '
-                   f'"{filePath.parent.joinpath(str(filePath.stem) + ' (slowed)' + str(filePath.suffix))}')
+def subprocess_run_with_spinner(cmd, progress_message='Running...', **kwargs):
+    """
+    Executes a subprocess command while displaying a terminal spinner.
 
-if mode == 40:
-    mode = Path(
-        'E:\\Other\\Music\\Tyler, The Creator\\CHROMAKOPIA [24-bit 44.1 kHz] [Full Album]\\Tyler, The Creator - CHROMAKOPIA - 01 - St. Chroma.flac')
-    print(mode.parent)
-if mode == mp3tomp4:
-    coverPath = win_file_path('cover', 'image')
-    mp3FilesPaths = win_files_path('audio', 'audio')
+    Args:
+        cmd (list): The command and arguments to execute.
+        progress_message (str): The text to display next to the spinner.
 
-    albumCoverConverted = False
-    userChoice = input(f'Scale album cover to 1000x1000? Enter=No, y=Yes\n'
-                       f': ')
-    if userChoice == 'y':
-        albumCoverConverted = True
-        print(f'Converting cover...')
-        coverPath = ScaleImage(coverPath, '1000:1000', remove_old=False)
-        print(f'Done!')
+    Raises:
+        subprocess.CalledProcessError: If the subprocess exits with a non-zero code.
+    """
+    console = Console()
 
-    mp3FilesPaths_safe = []
-    for index in range(len(mp3FilesPaths)):
-        mp3FilesPaths_safe.append(Path(str(mp3FilesPaths[index]).replace("'", "")))
-        mp3FilesPaths[index].rename(mp3FilesPaths_safe[index])
-        print(f'Converting "{mp3FilesPaths[index]}" to .mp4...')
-        subprocess.run(
-            f'ffmpeg '
-            f'-loglevel fatal '
-            f'-y '
-            f'-loop 1 '
-            f'-framerate 1 '
-            f'-i "{coverPath}" '
-            f'-i "{mp3FilesPaths_safe[index]}" '
-            f'-map 0:v:0 -map 1:a:0 '
-            f'-c:v libx264 -crf 30 -tune stillimage '
-            f'-c:a copy '
-            f'-shortest '
-            f'-movflags +faststart '
-            f'-map_metadata 1 '
-            f'-id3v2_version 3 -write_id3v1 1 '
-            f'-vf "format=yuv420p" '
-            f'-r 1 '
-            f'"{Path.joinpath(mp3FilesPaths_safe[index].with_suffix(".mp4"))}"',
+    kwargs.setdefault('spinner', 'dots12')
+    kwargs.setdefault('spinner_style', 'yellow')
+    with console.status(f'{progress_message}', **kwargs):
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
         )
-        print('Done!')
-        mp3FilesPaths_safe[index].rename(mp3FilesPaths[index])
-if mode == flactomp3:
-    flacFilePaths = win_files_path()
-    flacFilePaths_safe = []
-    for index in range(len(flacFilePaths)):
-        flacFilePaths_safe.append(Path(str(flacFilePaths[index]).replace("'", "")))
-        flacFilePaths[index].rename(flacFilePaths_safe[index])
 
-    folderPath = flacFilePaths[0].parent
-    folderName = folderPath.name
-    with open(f'{folderPath}\\temp_audio_list.txt', 'w+', encoding='utf-8') as f:
-        for file in flacFilePaths_safe:
-            f.write(f"file '{str(file).replace("'", "")}'\n")
+        stdout_text, _ = process.communicate()
+        exit_code = process.returncode
 
-    print(f'Concading "{folderName}.flac"...')
-    ffmpegOutput_concad = subprocess.run(f'ffmpeg '
-                                         f'-y '
-                                         f'-loglevel fatal '
-                                         f'-f concat '
-                                         f'-safe 0 '
-                                         f'-i "{folderPath}\\temp_audio_list.txt" '
-                                         f'-c copy '
-                                         f'"{folderPath}\\{folderName}.flac"',
-                                         capture_output=False)
-    print(f'Done!\n')
-    Path(f'{folderPath}\\temp_audio_list.txt').unlink()
-    os.makedirs(Path.joinpath(folderPath, 'mp3'), exist_ok=True)
-    print(f'Encoding to mp3 320kbps...')
-    subprocess.run(f'ffmpeg '
-                   f'-y '
-                   f'-loglevel fatal '
-                   f'-i "{folderPath}\\{folderName}.flac" '
-                   f'-map_metadata 0 '
-                   f'-id3v2_version 3 -write_id3v1 1 '
-                   f'-c:a libmp3lame -b:a 320k '
-                   f'"{folderPath}\\mp3\\{str(folderName.replace('[16-bit 44.1kHz]', '').replace('[24-bit 44.1 kHz]', '')) + ' [320kbps]'}.mp3"'
-                   )
-    for index in range(len(flacFilePaths)):
-        flacFilePaths_safe[index].rename(flacFilePaths[index])
-if mode == concad:
-    flacFilePaths = win_files_path()
-    folderPath = flacFilePaths[0].parent
-    folderName = folderPath.name
-    with open(f'{folderPath}\\temp_audio_list.txt', 'w') as f:
-        for file in flacFilePaths:
-            f.write(f"file '{file}'\n")
-    print(folderPath)
-    print(f'Concading "{folderName}.flac"...')
-    ffmpegOutput_concad = subprocess.run(f'ffmpeg '
-                                         f'-y '
-                                         #f'-loglevel fatal '
-                                         f'-f concat '
-                                         f'-safe 0 '
-                                         f'-i "temp_audio_list.txt" '
-                                         f'"{folderPath}\\{folderName}.txt"',
-                                         capture_output=False)
-    print(f'Done!\n')
-    Path(f'{folderPath}\\temp_audio_list.txt').unlink()
-if mode == mp3:
-    for songPath in win_files_path():
-        print(f'Processing {songPath}...')
-        folderPath = songPath.parent
-        outputPath = Path.joinpath(folderPath, 'mp3', songPath.name)
-        os.makedirs(Path.joinpath(folderPath, 'mp3'), exist_ok=True)
-        subprocess.run(f'ffmpeg '
-                       f'-y '
-                       f'-loglevel fatal '
-                       f'-i "{songPath}" '
-                       f'-map_metadata 0 '
-                       f'-id3v2_version 3 -write_id3v1 1 '
-                       f'-c:a libmp3lame -b:a 320k '
-                       f'"{outputPath.with_suffix('.mp3')}"'
-                       )
-        print(f'{Fore.LIGHTGREEN_EX}Done!{Fore.RESET}')
-if mode == data:
-    file = win_file_path()
+    if exit_code != 0:
+        raise subprocess.CalledProcessError(
+            returncode=exit_code,
+            cmd=cmd,
+            output=stdout_text
+        )
 
-    with open('data.json', 'w') as f:
-        f.write(json.dumps(get_file_data(file), indent=4))
-if mode == 25:
-    file = Path('E:\\Other\\Music\\Acid_Bath\\Paegan Terrorism Tactics')
-    print(file.joinpath('balls'))
-if mode == 24:
-    file = Path('E:\\Other\\Music\\Acid_Bath\\Paegan Terrorism Tactics\\Crazy_tick_removal_Or_fake.webm')
-    print(file.suffix)
-if mode == strip:
-    files = win_files_path()
-    for file in files:
-        print(f'Processing {file}...')
-        fileData = get_audio_data(file)
-        fileName = file.name
-        fileName_safe = fileName.replace("'", '')
-        filePath_safe = file.parent.joinpath(fileName_safe)
-        filePath_suffixed = filePath_safe.with_suffix(f'.{fileData['audio'][0]['codec_name']}')
-        file.rename(fileName_safe)
 
-        output = subprocess.run(f'ffmpeg '
-                                f'-loglevel fatal '
-                                f'-i "{filePath_safe}" '
-                                f'-c:a copy '
-                                f'-map_metadata 0 '
-                                f'-id3v2_version 3 -write_id3v1 1 '
-                                f'"{filePath_suffixed}"', capture_output=True)
-        if output.returncode == 0:
-            ...
-        #file.unlink(missing_ok=True)
-        else:
-            print(output.stderr)
-        filePath_suffixed.rename(file)
+file_path = win_file_path()
+cover_path = win_file_path('cover')
+mp4_output_path = file_path.parent / file_path.with_suffix('.mp4').name
+ffmpeg_exe = r'SourceFiles\ffmpeg.exe'
+cmd = [ffmpeg_exe, '-y', '-nostdin',
+       '-loglevel', 'error',
+       '-loop', '1',
+       '-framerate', '1',
+       '-i', str(cover_path),
+       '-i', str(file_path),
+       '-c:v', 'libx264',
+       '-tune', 'stillimage',
+       '-c:a', 'copy',
+       '-pix_fmt', 'yuv420p',
+       '-shortest',
+       '-movflags', '+faststart',
+       str(mp4_output_path)]
 
-if mode == 22:
-    pathToFile = Path('E:\\Other\\Music\\!!Nicotine+ Downloads\\Femtanyl - WORLDWID3 (feat. zombAe).flac')
-    ffprobeOutput = subprocess.run(
-        f'ffprobe '
-        f'-select_streams a:0 '
-        f'-show_entries format=format_name,duration,size,bit_rate:stream=codec_name,sample_rate,channels,bit_rate:format_tags:stream_tags -print_format json "{pathToFile}"',
-        shell=True, capture_output=True)
-    ffprobeOutputJson = json.loads(ffprobeOutput.stdout)
-    results = {}
-    results.update({'streams': ffprobeOutputJson["streams"][0]})
-    results.update({'format': ffprobeOutputJson['format']})
-    results.update({'tags': ffprobeOutputJson['format']['tags']})
-    results['format'].pop('tags')
-
-if mode == 20:
-    pathToFile = win_file_path()
-    fileInfo = get_audio_data(pathToFile)
-    codecName = fileInfo['audio'][0]['codec_name']
-    durationMinutes = fileInfo['format']['duration']
-    print(codecName)
-    print(durationMinutes)
-    with open("data.json", "w") as f:
-        f.write(json.dumps(fileInfo))
-
-    if input('\n\nProceed?') == '':
-        subprocess.run(f'ffmpeg '
-                       f'-y '
-                       f'-i "{pathToFile}" '
-                       f'-map_metadata 0 '
-                       f'-id3v2_version 3 -write_id3v1 1 '
-                       f'-c:a libmp3lame -b:a 320k '
-                       f'"{pathToFile.with_suffix('.mp3')}"'
-                       )
+# subprocess_run_timecount(cmd, text=True)
