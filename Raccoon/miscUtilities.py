@@ -48,24 +48,13 @@ def console_clear_n(n: int) -> None:
     sys.stdout.flush()
 
 
-def get_bundled_file_path(file_name: str) -> Path | None:
-    """
-    Finds the path to the bundled file, for example 'ffmpeg.exe'
-    """
+def get_bundled_file_path(file_name: str) -> str:
     if getattr(sys, 'frozen', False):
-        # in a bundle
-        # The path to the temp folder is sys._MEIPASS
         base_path = Path(sys._MEIPASS)
         file_path = base_path / file_name
-    else:
-        # normal .py script
-        # Assume ffmpeg is in the system's PATH
-        file_path = Path(file_name)
-
-    if file_path.is_file():
-        return file_path
-    else:
-        return None
+        if file_path.is_file():
+            return str(file_path)
+    return file_name
 
 
 def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
@@ -73,40 +62,37 @@ def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
     if file_path.suffix in extensions:
         return None
 
-    ffprobeOutput_format = subprocess.run(
-        f'ffprobe '
-        f'-select_streams a '
-        f'-show_entries '
-        f'format=format_name,duration,size,bit_rate'
-        f':format_tags '
-        f'-print_format json '
-        f'"{file_path}"',
-        shell=True, capture_output=True, check=True)
+    ffprobe_path = get_bundled_file_path('ffprobe.exe')
+
+    cmd_format = [
+        ffprobe_path,
+        '-select_streams', 'a',
+        '-show_entries', 'format=format_name,duration,size,bit_rate:format_tags',
+        '-print_format', 'json',
+        str(file_path)
+    ]
+    ffprobeOutput_format = subprocess.run(cmd_format, capture_output=True, check=True)
     ffprobeOutputJson_format = json.loads(ffprobeOutput_format.stdout)
 
-    ffprobeOutput_audio = subprocess.run(
-                                    f'ffprobe '
-                                    f'-select_streams a '
-                                    f'-show_entries '
-                                    f'format=format_name,duration,size,bit_rate'
-                                    f':stream=index,codec_name,sample_rate,bits_per_raw_sample,channels,bit_rate'
-                                    f':format_tags'
-                                    f':stream_tags '
-                                    f'-print_format json '
-                                    f'"{file_path}"',
-                                    shell=True, capture_output=True, check=True)
+    cmd_audio = [
+        ffprobe_path,
+        '-select_streams', 'a',
+        '-show_entries',
+        'format=format_name,duration,size,bit_rate:stream=index,codec_name,sample_rate,bits_per_raw_sample,channels,bit_rate:format_tags:stream_tags',
+        '-print_format', 'json',
+        str(file_path)
+    ]
+    ffprobeOutput_audio = subprocess.run(cmd_audio, capture_output=True, check=True)
     ffprobeOutputJson_audio = json.loads(ffprobeOutput_audio.stdout)
 
-    ffprobeOutput_video = subprocess.run(
-                                    f'ffprobe '
-                                    f'-select_streams v '
-                                    f'-show_entries '
-                                    f'stream=index,codec_name,width,height,pix_fmt'
-                                    f':format_tags:stream_tags '
-                                    f'-print_format json '
-                                    f'"{file_path}"',
-                                    shell=True, capture_output=True, check=True)
-
+    cmd_video = [
+        ffprobe_path,
+        '-select_streams', 'v',
+        '-show_entries', 'stream=index,codec_name,width,height,pix_fmt:format_tags:stream_tags',
+        '-print_format', 'json',
+        str(file_path)
+    ]
+    ffprobeOutput_video = subprocess.run(cmd_video, capture_output=True, check=True)
     ffprobeOutputJson_video = json.loads(ffprobeOutput_video.stdout)
 
     results = {}
