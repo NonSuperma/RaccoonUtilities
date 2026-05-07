@@ -254,15 +254,14 @@ def win_files_path(message: str = '', filetypes=None, initialDir: Path = None) -
     return [Path(p) for p in file_paths]
 
 
-def count_open_windows(process_name: str) -> int or None:
-    import psutil
+def count_open_windows(folder_name: str) -> int:
     import pygetwindow as gw
     import win32gui
-    import win32process
+
     open_windows = 0
 
     for window in gw.getAllWindows():
-        hwnd = window.handle
+        hwnd = window._hWnd
 
         if not win32gui.IsWindowVisible(hwnd):
             continue
@@ -271,14 +270,9 @@ def count_open_windows(process_name: str) -> int or None:
         if cls not in ("CabinetWClass", "ExploreWClass"):
             continue
 
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
-
-        try:
-            proc = psutil.Process(pid)
-            if proc.name().lower() == process_name:
-                open_windows += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
+        # Check if the folder name matches the window title (case-insensitive)
+        if window.title.lower() == folder_name.lower():
+            open_windows += 1
 
     return open_windows
 
