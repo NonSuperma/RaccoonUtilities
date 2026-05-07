@@ -9,43 +9,61 @@ from Raccoon.errors import *
 import subprocess
 import playsound3
 
-
-def convert_file(file_path: Path, new_extension, delete_old: bool = False):
-
+FFMPEG_PATH = str('ffmpeg.exe')
 
 
-def convert(path_to_file: Path, newExtension: str):
-        if path_to_file.suffix == newExtension:
-            return
+def convert_picture(file_path: Path, new_extension, delete_old: bool = False) -> Path | None:
 
-        emptyName = path_to_file.with_suffix('')
-        extensions = ['.png', '.jpg', '.jpeg', '.webp', '.ico', '.gif', '.bmp', '.tiff', '.svg', '.heic', '.avif']
+	new_extension = new_extension.lower().strip()
+	if '.' not in new_extension:
+		new_extension = '.' + new_extension
 
-        if path_to_file.suffix.lower() in extensions:
-            if newExtension.lower() == '.ico':
-                subprocess.run(
-                    f'ffmpeg -y -i "{path_to_file}" -vf "scale=256:256:force_original_aspect_ratio=decrease,pad=256:256:(ow-iw)/2:(oh-ih)/2" "{emptyName}{newExtension}"',
-                    shell=True, capture_output=True
-                )
-            else:
-                subprocess.run(
-                    f'ffmpeg -y -i "{path_to_file}" -update 1 -frames:v 1 "{emptyName}{newExtension}"',
+	extensions = ['.png', '.jpg', '.jpeg', '.webp', '.ico', '.gif', '.bmp', '.tiff', '.svg', '.heic', '.avif']
 
+	if new_extension not in extensions:
+		return None
 
+	if new_extension == '.ico':
+		output_path = file_path.parent / file_path.with_suffix('.ico').name
+		cmd = [FFMPEG_PATH, '-y',
+			   '-v', 'error',
+			   '-i', str(file_path),
+			   '-vf', 'scale=256:256:force_original_aspect_ratio=decrease,pad=256:256:(ow-iw)/2:(oh-ih)/2',
+			   str(output_path)
+			   ]
 
+		try:
+			subprocess.run(cmd, check=True)
+		except subprocess.CalledProcessError as e:
+			ask_exit(e.stderr.decode('utf-8'))
+		else:
+			return output_path
 
+	output_path = file_path.parent / file_path.with_suffix(new_extension).name
+
+	cmd = [FFMPEG_PATH, '-y',
+		   '-v', 'error',
+		   '-i', str(file_path),
+		   '-update', '1',
+		   '-frames:v', '1',
+		   str(output_path)
+		   ]
+
+	try:
+		subprocess.run(cmd, check=True)
+	except subprocess.CalledProcessError as e:
+		ask_exit(e.stderr.decode('utf-8'))
+	else:
+		return output_path
 
 
 def main():
-    track_paths = win_files_path()
-
-    conver_file(track_paths, input(f'new extension: '))
+	picture_path = win_file_path()
+	convert_picture(picture_path, input(f'new extension: '))
 
 
 if __name__ == '__main__':
-    main()
+	main()
 
-    script_dir = Path(__file__).parent
-    sound_path = script_dir.parent / 'SourceFiles' / 'au5-1.mp3'
-
-    playsound3.playsound(str(sound_path))
+	sound_path = get_bundled_file_path('au5-1.mp3')
+	playsound3.playsound(str(sound_path))
