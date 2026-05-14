@@ -211,9 +211,9 @@ def main():
     timestamp = time_now.strftime("%Y-%m-%d__%H-%M-%S")
 
     if streamer_name:
-        filename = f'{streamer_name}_{timestamp}.mkv'
+        filename = f'{streamer_name}_{timestamp}.mp4'
     else:
-        filename = f'stream_capture_{timestamp}.mkv'
+        filename = f'stream_capture_{timestamp}.mp4'
 
     window_title = stream_title if stream_title else 'Stream'
 
