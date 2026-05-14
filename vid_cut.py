@@ -29,7 +29,7 @@ def preview_and_cut(input_path, output_path):
 	)
 
 	start_time = 0.0
-	end_time = None
+	end_time: float | None = None
 	start_marked = False
 	video_duration = None
 	cut_authorized = False
@@ -37,13 +37,14 @@ def preview_and_cut(input_path, output_path):
 	def update_overlay():
 		lines = ["Keybinds: S (Start) | E (End) | Q (Quit & Cut)"]
 		if start_marked:
-			lines.append(f"Start marked at: {seconds_to_hhmmss(start_time)}")
+			lines.append(f'Start marked at: {seconds_to_hhmmss(start_time)}')
 		if end_time is not None:
-			lines.append(f"End marked at: {seconds_to_hhmmss(end_time)}")
+			lines.append(f'End marked at: {seconds_to_hhmmss(end_time)}')
 		player.osd_msg1 = "\n".join(lines)
 
 	@player.property_observer('duration')
 	def on_duration(name, value):
+		print(f'{name}: {value}')
 		nonlocal video_duration
 		if value is not None:
 			video_duration = value
@@ -54,20 +55,20 @@ def preview_and_cut(input_path, output_path):
 		start_time = player.time_pos or 0.0
 		start_marked = True
 		update_overlay()
-		print(f"Start marked at: {start_time:.3f}s")
+		print(f'Start marked at: {seconds_to_hhmmss(start_time)}')
 
 	@player.on_key_press('e')
 	def set_end():
 		nonlocal end_time
 		end_time = player.time_pos or 0.0
 		update_overlay()
-		print(f"End marked at: {end_time:.3f}s")
+		print(f'End marked at: {seconds_to_hhmmss(end_time)}')
 
 	@player.on_key_press('q')
 	def close_player():
 		nonlocal cut_authorized
 		if end_time is not None and start_time >= end_time:
-			player.show_text("Warning: Start time must be before End time!", duration=3000)
+			player.show_text('Warning: Start time must be before End time!', duration=3000)
 		else:
 			cut_authorized = True
 			player.quit()
@@ -116,7 +117,7 @@ def main():
 		audio_path = get_bundled_file_path(r'SourceFiles\au5-1.mp3')
 		playsound(audio_path)
 		if count_open_windows(output_path.parent.name) == 0:
-			subprocess.run(f'explorer.exe "{output_path.parent}"')
+			os.startfile(output_path.name)
 
 
 if __name__ == '__main__':
