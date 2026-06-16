@@ -1,4 +1,5 @@
 import threading
+import signal
 import traceback
 import queue
 import subprocess
@@ -413,6 +414,12 @@ class StreamWorker(threading.Thread):
 			self.active = False
 			self.player.quit()
 
+		# Prevent ctrl+c in cmd window from closing the mpv streams
+		@self.player.on_key_press('ctrl+c')
+		def toggle_console_from_mpv():
+			log(f"[Toggled console from an MPV window]")
+			self.manager.console.toggle()
+
 		@self.player.on_key_press('ctrl+x')
 		def abandon_stream():
 			log(f"[Stream {self.stream_id}] Stream abandoned via 'ctrl+x' hotkey. Marking for deletion.")
@@ -647,6 +654,9 @@ class StreamManager:
 
 
 if __name__ == '__main__':
+	# Stop program from terminating on ctrl+c in the cmd window
+	signal.signal(signal.SIGINT, signal.SIG_IGN)
+
 	try:
 		manager = StreamManager()
 		manager.run()
