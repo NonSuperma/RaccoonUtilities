@@ -136,3 +136,37 @@ def get_media_file_data(file_path: Path) -> Dict[Any, Any] | None:
     results = convert_numeric_keys_values(results)
 
     return results
+
+
+def subprocess_run_with_spinner(cmd, progress_message='Running...', **kwargs):
+	"""
+	Executes a subprocess command while displaying a terminal spinner.
+
+	Args:
+		cmd (list): The command and arguments to execute.
+		progress_message (str): The text to display next to the spinner.
+
+	Raises:
+		subprocess.CalledProcessError: If the subprocess exits with a non-zero code.
+	"""
+	console = Console()
+
+	kwargs.setdefault('spinner', 'dots12')
+	kwargs.setdefault('spinner_style', 'yellow')
+	with console.status(f'{progress_message}', **kwargs):
+		process = subprocess.Popen(
+			cmd,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT,
+			text=True
+		)
+
+		stdout_text, _ = process.communicate()
+		exit_code = process.returncode
+
+	if exit_code != 0:
+		raise subprocess.CalledProcessError(
+			returncode=exit_code,
+			cmd=cmd,
+			output=stdout_text
+		)
