@@ -60,3 +60,8 @@
 /libmpv-2.dll
 /RaccoonMenu.py
 /stream_downloader_V2.spec
+/Raccoon_Chat/chat_history.json
+/stream_downloader_V2/ffmpeg.exe
+/stream_downloader_V2/ffplay.exe
+/stream_downloader_V2/ffprobe.exe
+/stream_downloader_V2/yt-dlp.exe
