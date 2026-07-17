@@ -1,3 +1,4 @@
+import sys
 import os
 import json
 import time
@@ -7,12 +8,13 @@ import locale
 import threading
 import tkinter as tk
 from contextlib import suppress
-from tkinter import ttk, font as tkfont
+from tkinter import ttk, font as tkfont, filedialog
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Tuple
 
+from PIL import Image, ImageTk
 from google import genai
 from google.genai import types
 
@@ -22,12 +24,13 @@ with suppress(Exception):
 
 
 def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+	try:
+		base_path = sys._MEIPASS
+	except Exception:
+		base_path = os.path.abspath(".")
 
-    return os.path.join(base_path, relative_path)
+	return os.path.join(base_path, relative_path)
+
 
 @dataclass
 class Theme:
@@ -37,7 +40,7 @@ class Theme:
 	bg_button: str = "#333333"
 	bg_separator: str = "#3a3a3a"
 	fg_text: str = "#ffffff"
-	fg_accent: str = "#d8b4e2"
+	fg_accent: str = "#ebdff2"
 	fg_muted: str = "#888888"
 	fg_green: str = "#90ee90"
 	fg_grey: str = "#aaaaaa"
@@ -79,7 +82,8 @@ class AppConfig:
 			"max_rpm": 15,
 			"max_tpm": 1000000,
 			"cost_in": 1.25 if "pro" in model_name else 0.075,
-			"cost_out": 5.00 if "pro" in model_name else 0.30
+			"cost_out": 5.00 if "pro" in model_name else 0.30,
+			"cost_storage_ph": 4.50 if "pro" in model_name else 1.00  # USD per 1 Million tokens / hour
 		}
 
 
@@ -158,6 +162,7 @@ class GeminiManager:
 		self.chat_sessions: Dict[str, Any] = {}
 		self.current_session_id: Optional[str] = None
 		self.active_chat = None
+		self.current_cache = None
 		self.usage_tracker = UsageTracker()
 		self.is_compressing = False
 		self.load_history()
@@ -170,6 +175,7 @@ class GeminiManager:
 			self.create_new_session()
 		else:
 			self.current_session_id = list(self.chat_sessions.keys())[-1]
+			self._update_context_cache()
 			self._init_chat_object()
 
 	def save_history(self) -> None:
@@ -179,6 +185,7 @@ class GeminiManager:
 		session_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 		self.chat_sessions[session_id] = {"type": "normal", "history": []}
 		self.current_session_id = session_id
+		self._update_context_cache()
 		self._init_chat_object()
 		self.save_history()
 
@@ -192,6 +199,7 @@ class GeminiManager:
 			"history": [{"role": "ai", "content": configs["first_message"]}]
 		}
 		self.current_session_id = session_id
+		self._update_context_cache()
 		self._init_chat_object()
 		self.save_history()
 
@@ -203,6 +211,7 @@ class GeminiManager:
 			if self.current_session_id == session_id:
 				if self.chat_sessions:
 					self.current_session_id = list(self.chat_sessions.keys())[-1]
+					self._update_context_cache()
 					self._init_chat_object()
 				else:
 					self.create_new_session()
@@ -220,7 +229,71 @@ class GeminiManager:
 	def switch_session(self, session_id: str) -> None:
 		if session_id in self.chat_sessions:
 			self.current_session_id = session_id
+			self._update_context_cache()
 			self._init_chat_object()
+
+	def _build_cache_contents(self, session_data: dict) -> str:
+		c = session_data["config"]
+		return (
+			f"AI Config: {c['ai_config']}\n"
+			f"Personality: {c['personality']}\n"
+			f"Appearance: {c['appearance']}\n"
+			f"Context: {c['context']}\n"
+			f"Summary: {session_data.get('summary', '')}"
+		)
+
+	def _update_context_cache(self) -> None:
+		session_data = self.chat_sessions.get(self.current_session_id)
+		if not session_data or session_data.get("type") != "roleplay":
+			if self.current_cache:
+				with suppress(Exception):
+					self.client.caches.delete(name=self.current_cache.name)
+				self.current_cache = None
+			return
+
+		if self.current_cache:
+			with suppress(Exception):
+				self.client.caches.delete(name=self.current_cache.name)
+			self.current_cache = None
+
+		cache_text = self._build_cache_contents(session_data)
+
+		try:
+			self.current_cache = self.client.caches.create(
+				model=self.config.current_model,
+				config=types.CreateContextCacheConfig(
+					contents=[cache_text],
+					ttl="300s"
+				)
+			)
+		except Exception:
+			self.current_cache = None
+
+	def get_cache_stats(self) -> dict:
+		session = self.chat_sessions.get(self.current_session_id, {})
+		is_rp = session.get("type") == "roleplay"
+
+		if not is_rp or not self.current_cache:
+			return {
+				"status": "Inactive (Normal Chat or Text Too Short)",
+				"tokens": 0,
+				"expires": "N/A",
+				"cost_ph": 0.0
+			}
+
+		text = self._build_cache_contents(session)
+		estimated_tokens = len(text) // 4
+
+		caps = self.config.get_model_caps(self.config.current_model)
+		cost_usd_ph = (estimated_tokens / 1000000) * caps.get("cost_storage_ph", 1.0)
+		cost_pln_ph = cost_usd_ph * 3.75
+
+		return {
+			"status": f"Active ({self.current_cache.name})",
+			"tokens": estimated_tokens,
+			"expires": "5 minutes (Refreshes on prompt)",
+			"cost_ph": cost_pln_ph
+		}
 
 	def compress_history(self, session_id: str) -> None:
 		if self.is_compressing:
@@ -244,14 +317,14 @@ class GeminiManager:
 				messages = history[start_idx:end_idx]
 				text_to_compress = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
 				prompt = (f"Zaktualizuj podsumowanie o nowe wydarzenia i stan. Użyj gęstego, telegraficznego skrótu."
-						  f" Usuń prozę i dialogi. Skup się na faktach dających kontekst w historii."
-						  f" Użyj bezpośredniej, sprośnej (ale nie wulgarnej) terminologii przy opisie ciała."
-						  f" Użyj następującego formatu:\n"
-						  f" (historia: \n"
-						  f"stan emocjonalny: \n"
-						  f"stan ciała: )\n"
-						  f"Bieżące podsumowanie: {session.get('summary', '')}\n\n"
-						  f"Nowe zdarzenia: {text_to_compress}")
+				          f" Usuń prozę i dialogi. Skup się na faktach dających kontekst w historii."
+				          f" Użyj bezpośredniej, sprośnej (ale nie wulgarnej) terminologii przy opisie ciała."
+				          f" Użyj następującego formatu:\n"
+				          f" (historia: \n"
+				          f"stan emocjonalny: \n"
+				          f"stan ciała: )\n"
+				          f"Bieżące podsumowanie: {session.get('summary', '')}\n\n"
+				          f"Nowe zdarzenia: {text_to_compress}")
 
 				response = self.client.models.generate_content(
 					model='gemini-3.5-flash',
@@ -268,6 +341,8 @@ class GeminiManager:
 					session["summary"] = response.text
 					session["summarized_index"] = end_idx
 					self.save_history()
+					self._update_context_cache()
+					self._init_chat_object()
 			except Exception:
 				pass
 			finally:
@@ -307,15 +382,12 @@ class GeminiManager:
 		session_data = self.chat_sessions[self.current_session_id]
 
 		if session_data["type"] == "roleplay":
-			c = session_data["config"]
-			config_kwargs["system_instruction"] = (
-				f"AI Config: {c['ai_config']}\n"
-				f"Personality: {c['personality']}\n"
-				f"Appearance: {c['appearance']}\n"
-				f"Context: {c['context']}\n"
-				f"Summary: {session_data.get('summary', '')}"
-			)
-			history_source = session_data["history"][-6:]
+			if self.current_cache:
+				config_kwargs["cached_content"] = self.current_cache.name
+				history_source = session_data["history"][-6:]
+			else:
+				config_kwargs["system_instruction"] = self._build_cache_contents(session_data)
+				history_source = session_data["history"][-6:]
 
 			if session_data.get("summarized_index", 1) <= 1:
 				if session_data["history"] and session_data["history"][0] not in history_source:
@@ -349,6 +421,13 @@ class GeminiManager:
 
 		self.usage_tracker.add_request_timestamp()
 
+		if self.current_cache:
+			with suppress(Exception):
+				self.client.caches.update(
+					name=self.current_cache.name,
+					config=types.UpdateContextCacheConfig(ttl="300s")
+				)
+
 		def task() -> None:
 			try:
 				response = self.active_chat.send_message(text)
@@ -363,8 +442,8 @@ class GeminiManager:
 					response_text = Formatter.format_quotes(response.text)
 				else:
 					finish_reason = getattr(response.candidates[0], 'finish_reason', "UNKNOWN") if getattr(response,
-																										   'candidates',
-																										   None) else "UNKNOWN"
+					                                                                                       'candidates',
+					                                                                                       None) else "UNKNOWN"
 					response_text = f"[API Error: Empty Response. Finish Reason: {finish_reason}]"
 
 				self._record_interaction(text, response_text)
@@ -408,14 +487,29 @@ class ChatUI:
 		self._drag_data = {"x": 0, "y": 0}
 		self._resize_data = {"x": 0, "y": 0, "width": 0, "height": 0}
 
+		self.image_panel_visible = False
+		self.current_image = None
+		self.current_photo = None
+
 		self._setup_window()
 		self._build_layout()
 		self.apply_fonts()
 		self._bind_events()
 
+		self.root.protocol("WM_DELETE_WINDOW", self.on_app_close)
+
 		self.refresh_chat_display()
 		self.refresh_history_list()
 		self.update_usage_display()
+
+	def on_app_close(self) -> None:
+		if self.manager.current_cache:
+			cache_name = self.manager.current_cache.name
+			threading.Thread(
+				target=lambda: suppress(Exception)(self.manager.client.caches.delete(name=cache_name)),
+				daemon=False
+			).start()
+		self.root.destroy()
 
 	def _setup_window(self) -> None:
 		self.root.title("Raccoon Chat")
@@ -476,11 +570,12 @@ class ChatUI:
 		self._build_top_bar()
 
 		self.content_panes = tk.PanedWindow(self.main_frame, orient=tk.HORIZONTAL, bg=self.theme.bg_main, bd=0,
-											sashwidth=4)
+		                                    sashwidth=4)
 		self.content_panes.pack(fill=tk.BOTH, expand=True, pady=2)
 
 		self._build_sidebar()
 		self._build_chat_area()
+		self._build_image_panel()
 
 		self.sizegrip = ttk.Sizegrip(self.main_frame)
 		self.sizegrip.place(relx=1.0, rely=1.0, anchor="se")
@@ -489,7 +584,7 @@ class ChatUI:
 		self.top_bar = tk.Frame(self.main_frame, bg=self.theme.bg_panel, height=30)
 		self.top_bar.pack(fill=tk.X, side=tk.TOP)
 		self.stats_label = tk.Label(self.top_bar, text="", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
-									font=(self.font_family, 9))
+		                            font=(self.font_family, 9))
 		self.stats_label.pack(side=tk.RIGHT, padx=10)
 
 	def _build_sidebar(self) -> None:
@@ -501,32 +596,32 @@ class ChatUI:
 		self.btn_frame.pack(side=tk.TOP, fill=tk.X)
 
 		self.new_chat_btn = tk.Button(self.btn_frame, text="+ New Chat", bg=self.theme.bg_input,
-									  fg=self.theme.fg_accent, bd=0, command=self.show_new_chat_menu)
+		                              fg=self.theme.fg_accent, bd=0, command=self.show_new_chat_menu)
 		self.new_chat_btn.pack(fill=tk.X, padx=5, pady=2)
 
 		self.rename_chat_btn = tk.Button(self.btn_frame, text="* Rename Chat", bg=self.theme.bg_input,
-										 fg=self.theme.fg_accent, bd=0, command=self.rename_chat_dialog)
+		                                 fg=self.theme.fg_accent, bd=0, command=self.rename_chat_dialog)
 		self.rename_chat_btn.pack(fill=tk.X, padx=5, pady=2)
 
 		self.delete_chat_btn = tk.Button(self.btn_frame, text="- Delete Chat", bg=self.theme.bg_input,
-										 fg=self.theme.fg_accent, bd=0, command=self.delete_chat)
+		                                 fg=self.theme.fg_accent, bd=0, command=self.delete_chat)
 		self.delete_chat_btn.pack(fill=tk.X, padx=5, pady=2)
 
 		self.settings_frame = tk.Frame(self.sidebar, bg=self.theme.bg_panel)
 		self.settings_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
 		self.rp_settings_btn = tk.Button(self.settings_frame, text="RP Settings", bg=self.theme.bg_input,
-										 fg=self.theme.fg_accent, bd=0, command=lambda: self.open_rp_setup(False))
+		                                 fg=self.theme.fg_accent, bd=0, command=lambda: self.open_rp_setup(False))
 
 		self.open_settings_btn = tk.Button(self.settings_frame, text="Settings (Ctrl+P)", bg=self.theme.bg_input,
-										   fg=self.theme.fg_accent, bd=0, command=self.open_settings_dialog)
+		                                   fg=self.theme.fg_accent, bd=0, command=self.open_settings_dialog)
 		self.open_settings_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2)
 
 		self.separator = tk.Frame(self.sidebar, bg=self.theme.bg_separator, height=2)
 		self.separator.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
 
 		self.history_listbox = tk.Listbox(self.sidebar, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0,
-										  highlightthickness=0)
+		                                  highlightthickness=0)
 		self.history_listbox.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=5, pady=5)
 		self.history_listbox.bind("<<ListboxSelect>>", self.on_history_select)
 
@@ -538,31 +633,48 @@ class ChatUI:
 		self.input_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=10, pady=10)
 
 		self.input_box = tk.Text(self.input_frame, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
-								 highlightthickness=0, height=3)
+		                         highlightthickness=0, height=3)
 		self.input_box.pack(fill=tk.BOTH, expand=True)
 
 		self.action_btn_frame = tk.Frame(self.input_box, bg=self.theme.bg_input)
 
 		self.retry_btn = tk.Button(self.action_btn_frame, text="Retry", bg=self.theme.bg_button,
-								   fg=self.theme.fg_accent, bd=0, command=self.retry_last_message)
+		                           fg=self.theme.fg_accent, bd=0, command=self.retry_last_message)
 		self.retry_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
 		self.edit_ai_btn = tk.Button(self.action_btn_frame, text="Edit AI", bg=self.theme.bg_button,
-									 fg=self.theme.fg_accent, bd=0, command=lambda: self.edit_last_message_dialog("ai"))
+		                             fg=self.theme.fg_accent, bd=0, command=lambda: self.edit_last_message_dialog("ai"))
 		self.edit_ai_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
 		self.edit_user_btn = tk.Button(self.action_btn_frame, text="Edit User", bg=self.theme.bg_button,
-									   fg=self.theme.fg_accent, bd=0,
-									   command=lambda: self.edit_last_message_dialog("user"))
+		                               fg=self.theme.fg_accent, bd=0,
+		                               command=lambda: self.edit_last_message_dialog("user"))
 		self.edit_user_btn.pack(side=tk.RIGHT, padx=5, pady=5)
 
 		self.text_display = tk.Text(self.chat_area, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0,
-									highlightthickness=0, wrap=tk.WORD)
+		                            highlightthickness=0, wrap=tk.WORD)
 		self.text_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
 		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text)
 		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent)
 		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent)
 		self.text_display.config(state=tk.DISABLED)
+
+	def _build_image_panel(self) -> None:
+		self.image_panel = tk.Frame(self.content_panes, bg=self.theme.bg_panel, width=250)
+		self.img_btn_frame = tk.Frame(self.image_panel, bg=self.theme.bg_panel)
+		self.img_btn_frame.pack(side=tk.TOP, fill=tk.X)
+
+		self.upload_btn = tk.Button(self.img_btn_frame, text="Upload Image", bg=self.theme.bg_input,
+		                            fg=self.theme.fg_accent, bd=0, command=self.upload_image)
+		self.upload_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 2), pady=5)
+
+		self.clear_btn = tk.Button(self.img_btn_frame, text="X", bg=self.theme.bg_input,
+		                           fg=self.theme.fg_accent, bd=0, command=self.clear_image)
+		self.clear_btn.pack(side=tk.RIGHT, padx=(2, 5), pady=5)
+
+		self.image_canvas = tk.Canvas(self.image_panel, bg=self.theme.bg_panel, bd=0, highlightthickness=0)
+		self.image_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+		self.image_canvas.bind("<Configure>", self.resize_image)
 
 	def _safe_shortcut(self, func: Callable) -> Callable:
 		def wrapper(event: Any) -> str | None:
@@ -572,6 +684,64 @@ class ChatUI:
 			return "break"
 
 		return wrapper
+
+	def toggle_image_panel(self, event: Any = None) -> None:
+		if self.image_panel_visible:
+			self.content_panes.forget(self.image_panel)
+		else:
+			self.content_panes.add(self.image_panel)
+		self.image_panel_visible = not self.image_panel_visible
+
+	def upload_image(self) -> None:
+		file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")])
+		if file_path:
+			self.manager.chat_sessions[self.manager.current_session_id]["image_path"] = file_path
+			self.manager.save_history()
+			self._load_session_image()
+
+	def clear_image(self) -> None:
+		session = self.manager.chat_sessions.get(self.manager.current_session_id, {})
+		if "image_path" in session:
+			del session["image_path"]
+			self.manager.save_history()
+		self.current_image = None
+		self.image_canvas.delete("all")
+
+	def _load_session_image(self) -> None:
+		session = self.manager.chat_sessions.get(self.manager.current_session_id, {})
+		image_path = session.get("image_path")
+		if image_path and os.path.exists(image_path):
+			try:
+				self.current_image = Image.open(image_path)
+				self.display_image()
+			except Exception:
+				self.current_image = None
+				self.image_canvas.delete("all")
+		else:
+			self.current_image = None
+			self.image_canvas.delete("all")
+
+	def resize_image(self, event: Any = None) -> None:
+		if not self.current_image:
+			return
+		self.display_image()
+
+	def display_image(self) -> None:
+		if not self.current_image:
+			return
+		canvas_w = self.image_canvas.winfo_width()
+		canvas_h = self.image_canvas.winfo_height()
+		if canvas_w < 10 or canvas_h < 10:
+			return
+		img_w, img_h = self.current_image.size
+		ratio = min(canvas_w / img_w, canvas_h / img_h)
+		new_w, new_h = int(img_w * ratio), int(img_h * ratio)
+		if new_w <= 0 or new_h <= 0:
+			return
+		resized_img = self.current_image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+		self.current_photo = ImageTk.PhotoImage(resized_img)
+		self.image_canvas.delete("all")
+		self.image_canvas.create_image(canvas_w // 2, canvas_h // 2, anchor=tk.CENTER, image=self.current_photo)
 
 	def apply_fonts(self) -> None:
 		font_tuple = (self.font_family, self.font_size)
@@ -595,11 +765,11 @@ class ChatUI:
 
 	def apply_live_formatting(self, event: Any = None) -> None:
 		widgets = [event.widget] if event and getattr(event, "widget", None) and isinstance(event.widget,
-																							tk.Text) else [
+		                                                                                    tk.Text) else [
 			self.input_box]
 
 		if getattr(self, 'current_edit_box',
-				   None) and self.current_edit_box.winfo_exists() and self.current_edit_box not in widgets:
+		           None) and self.current_edit_box.winfo_exists() and self.current_edit_box not in widgets:
 			widgets.append(self.current_edit_box)
 
 		for w in widgets:
@@ -641,7 +811,7 @@ class ChatUI:
 			tpm_display = f"{tpm / 1000:.1f}k" if tpm > 1000 else str(tpm)
 			max_tpm_display = f"{max_tpm / 1000000:.1f}M" if max_tpm >= 1000000 else f"{max_tpm / 1000:.0f}k"
 			self.stats_label.config(text=f"RPM: {rpm}/{max_rpm} | TPM: {tpm_display}/{max_tpm_display}{compress_tag}",
-									fg=color)
+			                        fg=color)
 
 		self.root.after(1000, self.update_usage_display)
 
@@ -704,6 +874,9 @@ class ChatUI:
 
 		for key in ("<Control-l>", "<Control-L>"):
 			self.root.bind(key, self._safe_shortcut(self.toggle_sidebar))
+
+		for key in ("<Control-i>", "<Control-I>"):
+			self.root.bind(key, self._safe_shortcut(self.toggle_image_panel))
 
 		for key in ("<Control-p>", "<Control-P>"):
 			self.root.bind(key, self._safe_shortcut(self.open_settings_dialog))
@@ -802,7 +975,7 @@ class ChatUI:
 		popup.attributes("-topmost", True)
 
 		entry = tk.Entry(popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
-						 font=(self.font_family, self.font_size))
+		                 font=(self.font_family, self.font_size))
 		entry.pack(fill=tk.X, padx=10, pady=35)
 		entry.insert(0, old_id)
 		entry.focus_set()
@@ -835,7 +1008,7 @@ class ChatUI:
 		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
 
 		self.current_edit_box = tk.Text(popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
-										font=(self.font_family, self.font_size), wrap=tk.WORD)
+		                                font=(self.font_family, self.font_size), wrap=tk.WORD)
 		self.current_edit_box.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 		self.current_edit_box.insert(1.0, old_text)
 		self.current_edit_box.focus_set()
@@ -851,9 +1024,9 @@ class ChatUI:
 			return "break"
 
 		tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-				  command=save_edit).pack(side=tk.RIGHT, padx=10)
+		          command=save_edit).pack(side=tk.RIGHT, padx=10)
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-				  command=popup.destroy).pack(side=tk.RIGHT, padx=5)
+		          command=popup.destroy).pack(side=tk.RIGHT, padx=5)
 
 		popup.bind("<Escape>", lambda e: popup.destroy())
 		self.current_edit_box.bind("<Shift-Return>", save_edit)
@@ -869,7 +1042,7 @@ class ChatUI:
 		popup.attributes("-topmost", True)
 
 		tk.Label(popup, text="Roleplay Configuration", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-				 font=(self.font_family, self.font_size, "bold")).pack(pady=10)
+		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
 
 		main_container = tk.Frame(popup, bg=self.theme.bg_panel)
 		main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
@@ -903,9 +1076,9 @@ class ChatUI:
 
 		for key, label_text in fields:
 			tk.Label(container, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-					 font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=(5, 0))
+			         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=(5, 0))
 			t_box = tk.Text(container, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
-							font=(self.font_family, self.font_size), height=6 if key == "summary" else 4, wrap=tk.WORD)
+			                font=(self.font_family, self.font_size), height=6 if key == "summary" else 4, wrap=tk.WORD)
 			t_box.pack(fill=tk.X, expand=False, pady=2)
 
 			if key == "summary":
@@ -938,15 +1111,16 @@ class ChatUI:
 				session_obj["config"] = configs
 				session_obj["summary"] = summary_text
 				self.manager.save_history()
+				self.manager._update_context_cache()
 				self.manager._init_chat_object()
 
 			self.refresh_chat_display()
 			popup.destroy()
 
 		tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0, command=save_rp_config,
-				  width=10).pack(side=tk.RIGHT, padx=20)
+		          width=10).pack(side=tk.RIGHT, padx=20)
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-				  command=popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
+		          command=popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
 		popup.bind("<Escape>", lambda e: popup.destroy())
 
 	def open_settings_dialog(self, event: Any = None) -> None:
@@ -956,18 +1130,18 @@ class ChatUI:
 
 		self.settings_popup = tk.Toplevel(self.root)
 		self.settings_popup.overrideredirect(True)
-		self.settings_popup.geometry(f"400x600+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 50}")
+		self.settings_popup.geometry(f"450x700+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 20}")
 		self.settings_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		self.settings_popup.attributes("-topmost", True)
 
 		tk.Label(self.settings_popup, text="Model Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-				 font=(self.font_family, self.font_size, "bold")).pack(pady=10)
+		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
 		container = tk.Frame(self.settings_popup, bg=self.theme.bg_panel)
 		container.pack(fill=tk.BOTH, expand=True, padx=20)
 
 		def make_label(text: str, row: int) -> None:
 			tk.Label(container, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-					 font=(self.font_family, self.font_size)).grid(row=row, column=0, sticky="w", pady=5)
+			         font=(self.font_family, self.font_size)).grid(row=row, column=0, sticky="w", pady=5)
 
 		make_label("Model:", 0)
 		model_var = tk.StringVar(value=self.config.current_model)
@@ -976,7 +1150,7 @@ class ChatUI:
 
 		def make_scale(row: int, from_: float, to: float, res: float, val: float) -> tk.Scale:
 			s = tk.Scale(container, from_=from_, to=to, resolution=res, orient=tk.HORIZONTAL, bg=self.theme.bg_panel,
-						 fg=self.theme.fg_accent, bd=0, highlightthickness=0)
+			             fg=self.theme.fg_accent, bd=0, highlightthickness=0)
 			s.set(val)
 			s.grid(row=row, column=1, sticky="ew", pady=5)
 			return s
@@ -1002,9 +1176,26 @@ class ChatUI:
 
 		paid_tier_var = tk.BooleanVar(value=self.config.is_paid_tier)
 		paid_tier_cb = tk.Checkbutton(container, text="Paid Account (Hide RPM, Track Cost)", variable=paid_tier_var,
-									  bg=self.theme.bg_panel, fg=self.theme.fg_text, selectcolor=self.theme.bg_input,
-									  activebackground=self.theme.bg_panel, activeforeground=self.theme.fg_text)
+		                              bg=self.theme.bg_panel, fg=self.theme.fg_text, selectcolor=self.theme.bg_input,
+		                              activebackground=self.theme.bg_panel, activeforeground=self.theme.fg_text)
 		paid_tier_cb.grid(row=8, column=0, columnspan=2, sticky="w", pady=10)
+
+		# Context Cache Overview Section
+		ttk.Separator(container, orient="horizontal").grid(row=9, column=0, columnspan=2, sticky="ew", pady=(15, 10))
+		tk.Label(container, text="Context Caching Statistics", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).grid(row=10, column=0, columnspan=2, sticky="w",
+		                                                               pady=(0, 5))
+
+		stats = self.manager.get_cache_stats()
+
+		def make_stat_label(text: str, row: int) -> None:
+			tk.Label(container, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			         font=(self.font_family, 10)).grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
+
+		make_stat_label(f"Status: {stats['status']}", 11)
+		make_stat_label(f"Estimated Tokens: {stats['tokens']:,}", 12)
+		make_stat_label(f"Storage Cost: ~{stats['cost_ph']:.4f} PLN / hour", 13)
+		make_stat_label(f"Time to Live: {stats['expires']}", 14)
 
 		def update_dynamic_limits(event: Any = None) -> None:
 			caps = self.config.get_model_caps(model_var.get())
@@ -1013,7 +1204,7 @@ class ChatUI:
 				max_tok_scale.set(caps["max_tokens"])
 
 			state, color = (tk.NORMAL, self.theme.fg_accent) if caps["penalties"] else (tk.DISABLED,
-																						self.theme.fg_muted)
+			                                                                            self.theme.fg_muted)
 			pres_scale.config(state=state, fg=color)
 			freq_scale.config(state=state, fg=color)
 
@@ -1033,14 +1224,15 @@ class ChatUI:
 			self.config.frequency_penalty = freq_scale.get()
 			self.config.thinking_level = think_var.get()
 			self.config.is_paid_tier = paid_tier_var.get()
+			self.manager._update_context_cache()
 			self.manager._init_chat_object()
 			self.settings_popup.destroy()
 			self.update_usage_display()
 
 		tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0, command=save_settings,
-				  width=10).pack(side=tk.RIGHT, padx=20)
+		          width=10).pack(side=tk.RIGHT, padx=20)
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-				  command=self.settings_popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
+		          command=self.settings_popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
 		self.settings_popup.bind("<Escape>", lambda e: self.settings_popup.destroy())
 
 	def start_loading(self) -> None:
@@ -1095,7 +1287,7 @@ class ChatUI:
 
 		is_in_buttons = widget in (self.action_btn_frame, self.retry_btn, self.edit_ai_btn, self.edit_user_btn)
 		is_in_hover_zone = widget == self.input_box and (
-					x - self.input_box.winfo_rootx() > self.input_box.winfo_width() - 200)
+				x - self.input_box.winfo_rootx() > self.input_box.winfo_width() - 200)
 
 		if is_in_buttons or is_in_hover_zone:
 			self.show_action_buttons()
@@ -1224,6 +1416,8 @@ class ChatUI:
 
 		self.text_display.see(tk.END)
 		self.text_display.config(state=tk.DISABLED)
+
+		self._load_session_image()
 
 	def run(self) -> None:
 		self.root.mainloop()
