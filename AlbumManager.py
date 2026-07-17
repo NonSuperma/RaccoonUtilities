@@ -278,6 +278,7 @@ def main():
 							'-update', '1',
 							str(cover_path)
 						]
+						scale_to_even(cover_path)
 						try:
 							subprocess.run(cmd, check=True)
 						except subprocess.CalledProcessError as e:
@@ -447,6 +448,41 @@ def main():
 								except subprocess.CalledProcessError as e:
 									ask_exit(f'\n\n{Fore.RED}Error running ffmpeg!{Fore.RESET}:\n'
 											 f'{e.stderr}', 30)
+
+						case 'opus':
+								print(f'{INFO} OPUS -> MP4')
+								for index, track_path in enumerate(track_paths, start=1):
+									mp4_folder_output_path = folder_path / 'mp4'
+									mp4_folder_output_path.mkdir(exist_ok=True)
+
+									mp4_output_path = mp4_folder_output_path / track_path.with_suffix('.mp4').name
+
+									track_duration = tracks_data[index - 1]['format']['duration']
+
+									cmd = [FFMPEG_PATH, '-y', '-nostdin',
+										   '-v', 'error',
+										   '-loop', '1',
+										   '-framerate', '1',
+										   '-i', str(cover_path),
+										   '-i', str(track_path),
+										   '-map', '0:v:0',
+										   '-map', '1:a:0',
+										   '-c:v', 'libx264',
+										   '-tune', 'stillimage',
+										   '-c:a', 'copy',
+										   '-pix_fmt', 'yuv420p',
+										   '-t', str(track_duration),
+										   '-movflags', '+faststart',
+										   str(mp4_output_path)]
+
+									print(f'{mvb_clrln}{Fore.LIGHTYELLOW_EX}Encoding... ({index}/{len(track_paths)})',
+										  end='',
+										  flush=True)
+									try:
+										subprocess.run(cmd, check=True, text=True, capture_output=False)
+									except subprocess.CalledProcessError as e:
+										ask_exit(f'\n\n{Fore.RED}Error running ffmpeg!{Fore.RESET}:\n'
+												 f'{e.stderr}', 30)
 
 						case '_':
 							...
