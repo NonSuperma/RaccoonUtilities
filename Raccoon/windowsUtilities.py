@@ -1,3 +1,4 @@
+from typing import Sequence, Tuple, cast
 from Raccoon.errors import *
 from pathlib import Path
 from tkinter import filedialog, Tk
@@ -232,7 +233,7 @@ def win_files_path(message: str = '', filetypes=None, initialDir: Path = None) -
         elif filetypes == 'image':
             selection = cast(Sequence[Tuple[str, str]],
                              [
-                                 ("Image files", "*.PNG *.JPEG"),
+                                 ("Image files", "*.PNG *.JPEG *.JPG"),
                                  ("PNG files", "*.PNG"),
                                  ("JPEG files", "*.JPEG")
                              ])
