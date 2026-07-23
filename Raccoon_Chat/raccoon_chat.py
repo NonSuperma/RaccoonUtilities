@@ -1521,17 +1521,23 @@ class ChatUI:
 			preview_labels[key] = lbl
 
 		# Bottom part: Summary field (directly editable)
-		tk.Label(main_container, text="Current Background Summary (Editable)", bg=self.theme.bg_panel, fg=self.theme.fg_text,
-		         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=(15, 0))
+		summary_header = tk.Frame(main_container, bg=self.theme.bg_panel)
+		summary_header.pack(fill=tk.X, pady=(15, 0))
+
+		tk.Label(summary_header, text="Current Background Summary (Editable)", bg=self.theme.bg_panel, fg=self.theme.fg_text,
+		         font=(self.font_family, self.font_size, "bold")).pack(side=tk.LEFT)
+
+		tk.Button(summary_header, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+		          command=lambda: save_rp_config(), padx=10).pack(side=tk.RIGHT)
+		tk.Button(summary_header, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+		          command=popup.destroy, padx=10).pack(side=tk.RIGHT, padx=5)
+
 		summary_box = tk.Text(main_container, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
 		                    font=(self.font_family, self.font_size), height=10, wrap=tk.WORD, undo=True)
 		summary_box.pack(fill=tk.BOTH, expand=True, pady=5)
 		summary_box.insert(1.0, existing_summary)
 		summary_box.bind("<KeyPress>", self.intercept_polish_chars)
 		summary_box.bind("<KeyRelease>", self.apply_live_formatting)
-
-		btn_frame = tk.Frame(popup, bg=self.theme.bg_panel)
-		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=15)
 
 		def save_rp_config() -> None:
 			configs = {k: v for k, v in field_data.items()}
@@ -1554,10 +1560,13 @@ class ChatUI:
 			self.refresh_chat_display()
 			popup.destroy()
 
+		btn_frame = tk.Frame(popup, bg=self.theme.bg_panel)
+		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=15)
+
 		tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0, command=save_rp_config,
-		          width=15, height=2).pack(side=tk.RIGHT, padx=20)
+		          padx=10).pack(side=tk.RIGHT, padx=20)
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-		          command=popup.destroy, width=15, height=2).pack(side=tk.RIGHT, padx=5)
+		          command=popup.destroy, padx=10).pack(side=tk.RIGHT, padx=5)
 		popup.bind("<Escape>", lambda e: popup.destroy())
 
 	def open_settings_dialog(self, _: Any = None) -> None:
