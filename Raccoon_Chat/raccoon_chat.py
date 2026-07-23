@@ -917,7 +917,7 @@ class ChatUI:
 	def pick_avatars(self) -> None:
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"300x160+{self.root.winfo_x() + 300}+{self.root.winfo_y() + 250}")
+		self.center_window(popup, 300, 160)
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
@@ -1263,6 +1263,13 @@ class ChatUI:
 		for child in widget.winfo_children():
 			self._bind_scroll(child, canvas)
 
+	def center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
+		screen_width = window.winfo_screenwidth()
+		screen_height = window.winfo_screenheight()
+		x = (screen_width // 2) - (width // 2)
+		y = (screen_height // 2) - (height // 2)
+		window.geometry(f"{width}x{height}+{x}+{y}")
+
 	def start_drag(self, event: Any, window: Optional[tk.Toplevel] = None) -> None:
 		if isinstance(event.widget, (tk.Text, tk.Entry, tk.Scale, tk.Canvas, ttk.Combobox)):
 			return
@@ -1336,7 +1343,7 @@ class ChatUI:
 		old_id = self.history_listbox.get(selection[0])
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"300x100+{self.root.winfo_x() + 300}+{self.root.winfo_y() + 250}")
+		self.center_window(popup, 300, 100)
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
@@ -1369,7 +1376,7 @@ class ChatUI:
 		old_text = session[target_idx]["content"]
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"600x400+{self.root.winfo_x() + 150}+{self.root.winfo_y() + 100}")
+		self.center_window(popup, 600, 400)
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
@@ -1409,7 +1416,7 @@ class ChatUI:
 	def open_rp_setup(self, is_new: bool = False) -> None:
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"1000x900+{self.root.winfo_x() + 25}+{self.root.winfo_y() + 10}")
+		self.center_window(popup, 1000, 900)
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
@@ -1447,7 +1454,7 @@ class ChatUI:
 		def open_edit_window(key, label_text):
 			edit_popup = tk.Toplevel(popup)
 			edit_popup.overrideredirect(True)
-			edit_popup.geometry(f"800x600+{popup.winfo_x() + 100}+{popup.winfo_y() + 100}")
+			self.center_window(edit_popup, 800, 600)
 			edit_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 			edit_popup.attributes("-topmost", True)
 
@@ -1577,7 +1584,7 @@ class ChatUI:
 
 		self.settings_popup = tk.Toplevel(self.root)
 		self.settings_popup.overrideredirect(True)
-		self.settings_popup.geometry(f"850x850+{self.root.winfo_x() + 75}+{self.root.winfo_y() + 20}")
+		self.center_window(self.settings_popup, 850, 850)
 		self.settings_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		self.settings_popup.attributes("-topmost", True)
 
@@ -1720,7 +1727,7 @@ class ChatUI:
 	def open_overview_dialog(self, _: Any = None) -> None:
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"400x250+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 250}")
+		self.center_window(popup, 400, 250)
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
