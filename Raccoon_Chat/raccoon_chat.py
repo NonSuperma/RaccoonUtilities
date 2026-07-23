@@ -1264,9 +1264,13 @@ class ChatUI:
 			self._bind_scroll(child, canvas)
 
 	def start_drag(self, event: Any, window: Optional[tk.Toplevel] = None) -> None:
+		if isinstance(event.widget, (tk.Text, tk.Entry, tk.Scale, tk.Canvas, ttk.Combobox)):
+			return
 		self._drag_data.update({"x": event.x, "y": event.y})
 
 	def do_drag(self, event: Any, window: Optional[tk.Toplevel] = None) -> None:
+		if isinstance(event.widget, (tk.Text, tk.Entry, tk.Scale, tk.Canvas, ttk.Combobox)):
+			return
 		target = window if window else self.root
 		x = target.winfo_x() - self._drag_data["x"] + event.x
 		y = target.winfo_y() - self._drag_data["y"] + event.y
@@ -1405,7 +1409,7 @@ class ChatUI:
 	def open_rp_setup(self, is_new: bool = False) -> None:
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
-		popup.geometry(f"900x800+{self.root.winfo_x() + 50}+{self.root.winfo_y() + 20}")
+		popup.geometry(f"1000x900+{self.root.winfo_x() + 25}+{self.root.winfo_y() + 10}")
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
@@ -1416,61 +1420,122 @@ class ChatUI:
 		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
 
 		main_container = tk.Frame(popup, bg=self.theme.bg_panel)
-		main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-		canvas = tk.Canvas(main_container, bg=self.theme.bg_panel, highlightthickness=0)
-		scrollbar = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview)
-		container = tk.Frame(canvas, bg=self.theme.bg_panel)
-
-		container.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-		canvas_frame = canvas.create_window((0, 0), window=container, anchor="nw")
-		canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_frame, width=e.width))
-		canvas.configure(yscrollcommand=scrollbar.set)
-
-		scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-		canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-		self._bind_scroll(popup, canvas)
-
-		boxes = {}
-		fields = [
-			("ai_config", "AI Config"),
-			("personality", "Personality"),
-			("appearance", "Physical Appearance"),
-			("context", "Context"),
-			("first_message", "First Message"),
-			("summary", "Current Background Summary (Editable)")
-		]
+		main_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
 
 		session_data = self.manager.chat_sessions.get(self.manager.current_session_id, {}) if not is_new else {}
 		existing_config = session_data.get("config", {})
 		existing_summary = session_data.get("summary", "")
 
-		for key, label_text in fields:
-			tk.Label(container, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-			         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=(5, 0))
-			t_box = tk.Text(container, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
-			                font=(self.font_family, self.font_size), height=6 if key == "summary" else 4, wrap=tk.WORD)
-			t_box.pack(fill=tk.X, expand=False, pady=2)
+		field_data = {
+			"ai_config": existing_config.get("ai_config", ""),
+			"personality": existing_config.get("personality", ""),
+			"appearance": existing_config.get("appearance", ""),
+			"context": existing_config.get("context", ""),
+			"first_message": existing_config.get("first_message", ""),
+		}
 
-			if key == "summary":
-				t_box.insert(1.0, existing_summary)
-			elif key in existing_config:
-				t_box.insert(1.0, existing_config[key])
+		fields = [
+			("ai_config", "AI Config"),
+			("personality", "Personality"),
+			("appearance", "Physical Appearance"),
+			("context", "Context"),
+			("first_message", "First Message")
+		]
+
+		preview_labels = {}
+
+		def open_edit_window(key, label_text):
+			edit_popup = tk.Toplevel(popup)
+			edit_popup.overrideredirect(True)
+			edit_popup.geometry(f"800x600+{popup.winfo_x() + 100}+{popup.winfo_y() + 100}")
+			edit_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
+			edit_popup.attributes("-topmost", True)
+
+			edit_popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, edit_popup))
+			edit_popup.bind("<B1-Motion>", lambda e: self.do_drag(e, edit_popup))
+
+			tk.Label(edit_popup, text=f"Edit {label_text}", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+			         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
+
+			btn_frame = tk.Frame(edit_popup, bg=self.theme.bg_panel)
+			btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=15)
+
+			t_box = tk.Text(edit_popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
+			                font=(self.font_family, self.font_size), wrap=tk.WORD, undo=True)
+			t_box.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+			t_box.insert(1.0, field_data[key])
+			t_box.focus_set()
 
 			t_box.bind("<KeyPress>", self.intercept_polish_chars)
 			t_box.bind("<KeyRelease>", self.apply_live_formatting)
-			boxes[key] = t_box
 
-			if not is_new and key == "first_message":
-				t_box.config(state=tk.DISABLED, bg=self.theme.bg_separator)
+			def save_field():
+				new_val = t_box.get(1.0, tk.END).strip()
+				field_data[key] = new_val
+				# Update preview
+				preview_text = (new_val[:150] + "...") if len(new_val) > 150 else new_val
+				if not preview_text: preview_text = "(Empty)"
+				preview_labels[key].config(text=preview_text)
+				edit_popup.destroy()
+
+			tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+			          command=save_field, width=15, height=2).pack(side=tk.RIGHT, padx=20)
+			tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+			          command=edit_popup.destroy, width=15, height=2).pack(side=tk.RIGHT, padx=5)
+			
+			edit_popup.bind("<Escape>", lambda e: edit_popup.destroy())
+			t_box.bind("<Shift-Return>", lambda e: save_field())
+
+		# Top part: Previews and Edit buttons
+		preview_container = tk.Frame(main_container, bg=self.theme.bg_panel)
+		preview_container.pack(fill=tk.X)
+
+		for i, (key, label_text) in enumerate(fields):
+			row = i // 2
+			col = i % 2
+			
+			f_frame = tk.Frame(preview_container, bg=self.theme.bg_panel, bd=1, relief=tk.RIDGE)
+			f_frame.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
+			preview_container.grid_columnconfigure(col, weight=1)
+
+			header_frame = tk.Frame(f_frame, bg=self.theme.bg_panel)
+			header_frame.pack(fill=tk.X, padx=5, pady=2)
+			
+			tk.Label(header_frame, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+			         font=(self.font_family, self.font_size, "bold")).pack(side=tk.LEFT)
+			
+			if not (not is_new and key == "first_message"):
+				tk.Button(header_frame, text="Edit", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+				          command=lambda k=key, l=label_text: open_edit_window(k, l), padx=10).pack(side=tk.RIGHT)
+			else:
+				tk.Label(header_frame, text="(Locked)", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
+				         font=(self.font_family, self.font_size - 2)).pack(side=tk.RIGHT)
+
+			val = field_data[key]
+			preview_text = (val[:150] + "...") if len(val) > 150 else val
+			if not preview_text: preview_text = "(Empty)"
+			
+			lbl = tk.Label(f_frame, text=preview_text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			               font=(self.font_family, self.font_size - 1), justify=tk.LEFT, anchor="nw", wraplength=450)
+			lbl.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
+			preview_labels[key] = lbl
+
+		# Bottom part: Summary field (directly editable)
+		tk.Label(main_container, text="Current Background Summary (Editable)", bg=self.theme.bg_panel, fg=self.theme.fg_text,
+		         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=(15, 0))
+		summary_box = tk.Text(main_container, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
+		                    font=(self.font_family, self.font_size), height=10, wrap=tk.WORD, undo=True)
+		summary_box.pack(fill=tk.BOTH, expand=True, pady=5)
+		summary_box.insert(1.0, existing_summary)
+		summary_box.bind("<KeyPress>", self.intercept_polish_chars)
+		summary_box.bind("<KeyRelease>", self.apply_live_formatting)
 
 		btn_frame = tk.Frame(popup, bg=self.theme.bg_panel)
 		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=15)
 
 		def save_rp_config() -> None:
-			configs = {k: box.get(1.0, tk.END).strip() for k, box in boxes.items() if k != "summary"}
-			summary_text = boxes["summary"].get(1.0, tk.END).strip()
+			configs = {k: v for k, v in field_data.items()}
+			summary_text = summary_box.get(1.0, tk.END).strip()
 
 			if is_new:
 				self.manager.create_rp_session(configs)
@@ -1478,6 +1543,7 @@ class ChatUI:
 				self.refresh_history_list()
 			else:
 				session_obj = self.manager.chat_sessions[self.manager.current_session_id]
+				# Ensure first_message is not overwritten if locked
 				configs["first_message"] = existing_config.get("first_message", "")
 				session_obj["config"] = configs
 				session_obj["summary"] = summary_text
@@ -1489,9 +1555,9 @@ class ChatUI:
 			popup.destroy()
 
 		tk.Button(btn_frame, text="Save", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0, command=save_rp_config,
-		          width=10).pack(side=tk.RIGHT, padx=20)
+		          width=15, height=2).pack(side=tk.RIGHT, padx=20)
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
-		          command=popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
+		          command=popup.destroy, width=15, height=2).pack(side=tk.RIGHT, padx=5)
 		popup.bind("<Escape>", lambda e: popup.destroy())
 
 	def open_settings_dialog(self, _: Any = None) -> None:
@@ -1512,24 +1578,12 @@ class ChatUI:
 		tk.Label(self.settings_popup, text="Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
 		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
 
-		canvas = tk.Canvas(self.settings_popup, bg=self.theme.bg_panel, highlightthickness=0)
-		scrollbar = ttk.Scrollbar(self.settings_popup, orient="vertical", command=canvas.yview)
-		scrollable_frame = tk.Frame(canvas, bg=self.theme.bg_panel)
+		main_content = tk.Frame(self.settings_popup, bg=self.theme.bg_panel)
+		main_content.pack(expand=True, fill=tk.BOTH)
 
-		scrollable_frame.bind(
-			"<Configure>",
-			lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-		)
+		container = tk.Frame(main_content, bg=self.theme.bg_panel)
+		container.place(relx=0.5, rely=0.5, anchor="center")
 
-		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=830)
-		canvas.configure(yscrollcommand=scrollbar.set)
-
-		canvas.pack(side="left", fill="both", expand=True, padx=(20, 0))
-		scrollbar.pack(side="right", fill="y")
-
-		self._bind_scroll(self.settings_popup, canvas)
-
-		container = scrollable_frame
 		container.grid_columnconfigure(0, weight=1)
 		container.grid_columnconfigure(1, weight=1)
 
