@@ -7,9 +7,10 @@ import re
 import locale
 import threading
 import ctypes.wintypes
+import colorsys
 import tkinter as tk
 from contextlib import suppress
-from tkinter import ttk, font as tkfont, filedialog
+from tkinter import ttk, font as tkfont, filedialog, colorchooser
 from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
@@ -32,6 +33,134 @@ def resource_path(relative_path):
 
 	return os.path.join(base_path, relative_path)
 
+
+
+class DarkColorPicker(tk.Toplevel):
+	def __init__(self, parent, theme: 'Theme', initial_color: str = "#ffffff", title: str = "Pick Color"):
+		super().__init__(parent)
+		self.theme = theme
+		self.title(title)
+		self.resizable(False, False)
+		self.transient(parent)
+		self.grab_set()
+		self.configure(bg=theme.bg_panel)
+		self.current_color = initial_color
+		if not self.current_color.startswith("#"):
+			self.current_color = "#ffffff"
+		self.result = None
+		self.h, self.s, self.v = self._hex_to_hsv(self.current_color)
+		self._build_ui()
+		self._update_color_display()
+		self.update_idletasks()
+		x = parent.winfo_rootx() + (parent.winfo_width() // 2) - (self.winfo_width() // 2)
+		y = parent.winfo_rooty() + (parent.winfo_height() // 2) - (self.winfo_height() // 2)
+		self.geometry(f"+{x}+{y}")
+		self.protocol("WM_DELETE_WINDOW", self._on_cancel)
+
+	def _hex_to_hsv(self, hex_color):
+		hex_color = hex_color.lstrip('#')
+		r, g, b = tuple(int(hex_color[i:i+2], 16) / 255.0 for i in (0, 2, 4))
+		return colorsys.rgb_to_hsv(r, g, b)
+
+	def _hsv_to_hex(self, h, s, v):
+		r, g, b = colorsys.hsv_to_rgb(h, s, v)
+		return '#{:02x}{:02x}{:02x}'.format(int(r * 255), int(g * 255), int(b * 255))
+
+	def _build_ui(self):
+		main_frame = tk.Frame(self, bg=self.theme.bg_panel, padx=20, pady=20)
+		main_frame.pack()
+		self.sat_val_canvas = tk.Canvas(main_frame, width=200, height=200, bg="black", highlightthickness=0)
+		self.sat_val_canvas.grid(row=0, column=0, padx=(0, 10))
+		self.sat_val_canvas.bind("<B1-Motion>", self._on_sat_val_click)
+		self.sat_val_canvas.bind("<Button-1>", self._on_sat_val_click)
+		self.hue_canvas = tk.Canvas(main_frame, width=20, height=200, bg="black", highlightthickness=0)
+		self.hue_canvas.grid(row=0, column=1)
+		self.hue_canvas.bind("<B1-Motion>", self._on_hue_click)
+		self.hue_canvas.bind("<Button-1>", self._on_hue_click)
+		self._draw_hue_gradient()
+		self._draw_sat_val_gradient()
+		bottom_frame = tk.Frame(main_frame, bg=self.theme.bg_panel, pady=20)
+		bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+		tk.Label(bottom_frame, text="HEX:", bg=self.theme.bg_panel, fg=self.theme.fg_text).pack(side=tk.LEFT)
+		self.hex_var = tk.StringVar(value=self.current_color)
+		self.hex_entry = tk.Entry(bottom_frame, textvariable=self.hex_var, width=10, 
+		                         bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0)
+		self.hex_entry.pack(side=tk.LEFT, padx=10)
+		self.hex_var.trace_add("write", self._on_hex_entry_change)
+		self.preview_label = tk.Label(bottom_frame, width=10, height=2, bg=self.current_color)
+		self.preview_label.pack(side=tk.RIGHT)
+		btn_frame = tk.Frame(self, bg=self.theme.bg_panel, pady=10)
+		btn_frame.pack(fill=tk.X)
+		tk.Button(btn_frame, text="Cancel", command=self._on_cancel, 
+		          bg=self.theme.bg_button, fg=self.theme.fg_text, bd=0, padx=15).pack(side=tk.RIGHT, padx=20)
+		tk.Button(btn_frame, text="OK", command=self._on_ok, 
+		          bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0, padx=20).pack(side=tk.RIGHT)
+
+	def _draw_hue_gradient(self):
+		self.hue_canvas.delete("gradient")
+		for y in range(200):
+			h = y / 200.0
+			color = self._hsv_to_hex(h, 1.0, 1.0)
+			self.hue_canvas.create_line(0, y, 20, y, fill=color, tags="gradient")
+		self.hue_indicator = self.hue_canvas.create_line(0, self.h * 200, 20, self.h * 200, fill="white", width=2)
+
+	def _draw_sat_val_gradient(self):
+		self.sat_val_canvas.delete("gradient")
+		for x in range(0, 200, 4):
+			for y in range(0, 200, 4):
+				s = x / 200.0
+				v = 1.0 - (y / 200.0)
+				color = self._hsv_to_hex(self.h, s, v)
+				self.sat_val_canvas.create_rectangle(x, y, x+4, y+4, fill=color, outline=color, tags="gradient")
+		self.sat_val_indicator = self.sat_val_canvas.create_oval(
+			self.s * 200 - 5, (1-self.v) * 200 - 5, 
+			self.s * 200 + 5, (1-self.v) * 200 + 5, 
+			outline="white", width=2)
+
+	def _on_hue_click(self, event):
+		self.h = max(0, min(199, event.y)) / 200.0
+		self.hue_canvas.coords(self.hue_indicator, 0, self.h * 200, 20, self.h * 200)
+		self._draw_sat_val_gradient()
+		self._update_color_display()
+
+	def _on_sat_val_click(self, event):
+		self.s = max(0, min(200, event.x)) / 200.0
+		self.v = 1.0 - (max(0, min(200, event.y)) / 200.0)
+		self.sat_val_canvas.coords(self.sat_val_indicator, 
+		                           self.s * 200 - 5, (1-self.v) * 200 - 5, 
+		                           self.s * 200 + 5, (1-self.v) * 200 + 5)
+		self._update_color_display()
+
+	def _update_color_display(self):
+		self.current_color = self._hsv_to_hex(self.h, self.s, self.v)
+		self.hex_var.set(self.current_color)
+		self.preview_label.configure(bg=self.current_color)
+
+	def _on_hex_entry_change(self, *args):
+		hex_val = self.hex_var.get()
+		if len(hex_val) == 7 and hex_val.startswith("#"):
+			try:
+				self.h, self.s, self.v = self._hex_to_hsv(hex_val)
+				self.current_color = hex_val
+				self.preview_label.configure(bg=self.current_color)
+				self.hue_canvas.coords(self.hue_indicator, 0, self.h * 200, 20, self.h * 200)
+				self.sat_val_canvas.coords(self.sat_val_indicator, 
+				                           self.s * 200 - 5, (1-self.v) * 200 - 5, 
+				                           self.s * 200 + 5, (1-self.v) * 200 + 5)
+				self._draw_sat_val_gradient()
+			except:
+				pass
+
+	def _on_ok(self):
+		self.result = self.current_color
+		self.destroy()
+
+	def _on_cancel(self):
+		self.destroy()
+
+	def get_color(self):
+		self.wait_window()
+		return self.result
 
 @dataclass
 class Theme:
@@ -1425,7 +1554,11 @@ class ChatUI:
 			c_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
 			def pick_color_factory(name, var):
-				return lambda: var.set(colorchooser.askcolor(initialcolor=var.get(), title=f"Pick {name}")[1] or var.get())
+				def pick():
+					new_color = DarkColorPicker(self.settings_popup, self.theme, initial_color=var.get(), title=f"Pick {name}").get_color()
+					if new_color:
+						var.set(new_color)
+				return pick
 
 			tk.Button(f, text="Pick", bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0,
 			          command=pick_color_factory(color_name, c_var)).pack(side=tk.RIGHT, padx=5)
