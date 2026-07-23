@@ -6,6 +6,7 @@ import ctypes
 import re
 import locale
 import threading
+import ctypes.wintypes
 import tkinter as tk
 from contextlib import suppress
 from tkinter import ttk, font as tkfont, filedialog
@@ -40,25 +41,36 @@ class Theme:
 	bg_button: str = "#333333"
 	bg_separator: str = "#3a3a3a"
 	fg_text: str = "#ffffff"
-	fg_accent: str = "#ebdff2"
+	fg_accent: str = "#ece1f7"
 	fg_muted: str = "#888888"
 	fg_green: str = "#90ee90"
 	fg_grey: str = "#aaaaaa"
+
+	def to_dict(self) -> Dict[str, str]:
+		return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+
+	@classmethod
+	def from_dict(cls, data: Dict[str, str]) -> 'Theme':
+		return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
 
 @dataclass
 class AppConfig:
 	api_key: str = field(init=False)
 	history_file: Path = Path("chat_history.json")
+	config_file: Path = Path("config.json")
+	theme: Theme = field(default_factory=Theme)
 	models: List[str] = field(default_factory=lambda: [
+		'gemini-3.6-flash',
+		'gemini-3.6-flash-lite',
 		'gemini-3.5-flash',
 		'gemini-3.1-flash-lite',
 		'gemini-2.5-flash',
 		'gemini-2.0-flash',
 		'gemini-2.5-pro'
 	])
-	current_model: str = 'gemini-3.5-flash'
-	temperature: float = 1.4
+	current_model: str = 'gemini-3.6-flash'
+	temperature: float = 1.3
 	top_k: int = 64
 	top_p: float = 0.95
 	max_tokens: int = 8192
@@ -74,16 +86,50 @@ class AppConfig:
 			self.api_key = key_file.read_text(encoding="utf-8").strip()
 		else:
 			self.api_key = os.environ.get("GEMINI_API_KEY", "")
+		self.load_config()
+
+	def load_config(self) -> None:
+		if self.config_file.exists():
+			try:
+				data = json.loads(self.config_file.read_text(encoding='utf-8'))
+				if "theme" in data:
+					self.theme = Theme.from_dict(data["theme"])
+				self.current_model = data.get("current_model", self.current_model)
+				self.temperature = data.get("temperature", self.temperature)
+				self.top_k = data.get("top_k", self.top_k)
+				self.top_p = data.get("top_p", self.top_p)
+				self.max_tokens = data.get("max_tokens", self.max_tokens)
+				self.presence_penalty = data.get("presence_penalty", self.presence_penalty)
+				self.frequency_penalty = data.get("frequency_penalty", self.frequency_penalty)
+				self.thinking_level = data.get("thinking_level", self.thinking_level)
+				self.is_paid_tier = data.get("is_paid_tier", self.is_paid_tier)
+			except Exception:
+				pass
+
+	def save_config(self) -> None:
+		data = {
+			"theme": self.theme.to_dict(),
+			"current_model": self.current_model,
+			"temperature": self.temperature,
+			"top_k": self.top_k,
+			"top_p": self.top_p,
+			"max_tokens": self.max_tokens,
+			"presence_penalty": self.presence_penalty,
+			"frequency_penalty": self.frequency_penalty,
+			"thinking_level": self.thinking_level,
+			"is_paid_tier": self.is_paid_tier
+		}
+		self.config_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
 
 	def get_model_caps(self, model_name: str) -> Dict[str, Any]:
 		return {
 			"max_tokens": 4096 if "lite" in model_name else 8192,
-			"penalties": not any(v in model_name for v in ["3.5", "3.1", "2.0"]),
+			"penalties": not any(v in model_name for v in ["3.6", "3.5", "3.1", "2.0"]),
 			"max_rpm": 15,
 			"max_tpm": 1000000,
 			"cost_in": 1.25 if "pro" in model_name else 0.075,
 			"cost_out": 5.00 if "pro" in model_name else 0.30,
-			"cost_storage_ph": 4.50 if "pro" in model_name else 1.00  # USD per 1 Million tokens / hour
+			"cost_storage_ph": 4.50 if "pro" in model_name else 1.00
 		}
 
 
@@ -327,7 +373,7 @@ class GeminiManager:
 				          f"Nowe zdarzenia: {text_to_compress}")
 
 				response = self.client.models.generate_content(
-					model='gemini-3.5-flash',
+					model='gemini-3.6-flash',
 					contents=prompt
 				)
 
@@ -456,6 +502,8 @@ class GeminiManager:
 		threading.Thread(target=task, daemon=True).start()
 
 	def _record_interaction(self, user_text: str, ai_text: str) -> None:
+		if not self.current_session_id:
+			return
 		history = self.chat_sessions[self.current_session_id]["history"]
 		history.extend([
 			{"role": "user", "content": user_text},
@@ -465,14 +513,44 @@ class GeminiManager:
 		self.compress_history(self.current_session_id)
 
 
+class GlobalHotkey(threading.Thread):
+	def __init__(self, callback: Callable[[], None]) -> None:
+		super().__init__(daemon=True)
+		self.callback = callback
+
+	def run(self) -> None:
+		user32 = ctypes.windll.user32
+		MOD_CONTROL = 0x0002
+		VK_OEM_3 = 0xC0
+		HOTKEY_ID = 101
+
+		if user32.RegisterHotKey(None, HOTKEY_ID, MOD_CONTROL, VK_OEM_3):
+			msg = ctypes.wintypes.MSG()
+			while user32.GetMessageW(ctypes.byref(msg), None, 0, 0) != 0:
+				if msg.message == 0x0312:
+					self.callback()
+			user32.UnregisterHotKey(None, HOTKEY_ID)
+
+
 class ChatUI:
 	def __init__(self, gemini_manager: GeminiManager) -> None:
 		self.manager = gemini_manager
 		self.config = self.manager.config
-		self.theme = Theme()
+		self.theme = self.config.theme
 
 		self.font_family = "Lexend"
 		self.font_size = 12
+		self.is_app_hidden = False
+
+		self.avatar_size = 64
+		self.user_avatar_path = None
+		self.ai_avatar_path = None
+		self.user_avatar_tk = None
+		self.ai_avatar_tk = None
+
+		self.sidebar_visible = True
+		self.current_edit_box = None
+		self.settings_popup = None
 
 		self.polish_map = {
 			'¹': 'ą', 'æ': 'ć', 'ê': 'ę', '³': 'ł', 'ñ': 'ń', 'œ': 'ś', 'Ÿ': 'ź', '\x9f': 'ź', '¿': 'ż',
@@ -496,13 +574,30 @@ class ChatUI:
 		self.apply_fonts()
 		self._bind_events()
 
+		self.hotkey_thread = GlobalHotkey(self.trigger_toggle_from_thread)
+		self.hotkey_thread.start()
+
 		self.root.protocol("WM_DELETE_WINDOW", self.on_app_close)
 
 		self.refresh_chat_display()
 		self.refresh_history_list()
 		self.update_usage_display()
 
+	def trigger_toggle_from_thread(self) -> None:
+		self.root.after(0, self.toggle_app_visibility)
+
+	def toggle_app_visibility(self, _: Any = None) -> str:
+		if self.is_app_hidden:
+			self.root.deiconify()
+			self.root.focus_force()
+			self.is_app_hidden = False
+		else:
+			self.root.withdraw()
+			self.is_app_hidden = True
+		return "break"
+
 	def on_app_close(self) -> None:
+		self.config.save_config()
 		if self.manager.current_cache:
 			cache_name = self.manager.current_cache.name
 			threading.Thread(
@@ -578,7 +673,7 @@ class ChatUI:
 		self._build_image_panel()
 
 		self.sizegrip = ttk.Sizegrip(self.main_frame)
-		self.sizegrip.place(relx=1.0, rely=1.0, anchor="se")
+		self.sizegrip.place(relx=1.0, rely=1.0, anchor=tk.SE)
 
 	def _build_top_bar(self) -> None:
 		self.top_bar = tk.Frame(self.main_frame, bg=self.theme.bg_panel, height=30)
@@ -606,6 +701,10 @@ class ChatUI:
 		self.delete_chat_btn = tk.Button(self.btn_frame, text="- Delete Chat", bg=self.theme.bg_input,
 		                                 fg=self.theme.fg_accent, bd=0, command=self.delete_chat)
 		self.delete_chat_btn.pack(fill=tk.X, padx=5, pady=2)
+
+		self.toggle_img_panel_btn = tk.Button(self.btn_frame, text="Toggle Img Panel", bg=self.theme.bg_input,
+		                                      fg=self.theme.fg_accent, bd=0, command=self.toggle_image_panel)
+		self.toggle_img_panel_btn.pack(fill=tk.X, padx=5, pady=2)
 
 		self.settings_frame = tk.Frame(self.sidebar, bg=self.theme.bg_panel)
 		self.settings_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
@@ -654,13 +753,20 @@ class ChatUI:
 		self.text_display = tk.Text(self.chat_area, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0,
 		                            highlightthickness=0, wrap=tk.WORD)
 		self.text_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
-		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text)
-		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent)
-		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent)
+		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text, spacing3=15)
+		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent, spacing3=15)
+		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent, spacing3=15)
+		self.text_display.tag_configure("green", foreground=self.theme.fg_green)
+		self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
 		self.text_display.config(state=tk.DISABLED)
 
 	def _build_image_panel(self) -> None:
 		self.image_panel = tk.Frame(self.content_panes, bg=self.theme.bg_panel, width=250)
+
+		self.avatar_btn = tk.Button(self.image_panel, text="Pick Avatars", bg=self.theme.bg_input,
+		                            fg=self.theme.fg_accent, bd=0, command=self.pick_avatars)
+		self.avatar_btn.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+
 		self.img_btn_frame = tk.Frame(self.image_panel, bg=self.theme.bg_panel)
 		self.img_btn_frame.pack(side=tk.TOP, fill=tk.X)
 
@@ -676,7 +782,62 @@ class ChatUI:
 		self.image_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 		self.image_canvas.bind("<Configure>", self.resize_image)
 
-	def _safe_shortcut(self, func: Callable) -> Callable:
+	def pick_avatars(self) -> None:
+		popup = tk.Toplevel(self.root)
+		popup.overrideredirect(True)
+		popup.geometry(f"300x160+{self.root.winfo_x() + 300}+{self.root.winfo_y() + 250}")
+		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
+		popup.attributes("-topmost", True)
+
+		def pick_user():
+			path = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
+			if path:
+				self.user_avatar_path = path
+				if self.manager.current_session_id in self.manager.chat_sessions:
+					self.manager.chat_sessions[self.manager.current_session_id]["user_avatar"] = path
+					self.manager.save_history()
+				self.load_avatars()
+				self.refresh_chat_display()
+
+		def pick_ai():
+			path = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
+			if path:
+				self.ai_avatar_path = path
+				if self.manager.current_session_id in self.manager.chat_sessions:
+					self.manager.chat_sessions[self.manager.current_session_id]["ai_avatar"] = path
+					self.manager.save_history()
+				self.load_avatars()
+				self.refresh_chat_display()
+
+		tk.Button(popup, text="Pick User Avatar", bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
+		          command=pick_user).pack(fill=tk.X, padx=10, pady=(15, 5))
+		tk.Button(popup, text="Pick AI Avatar", bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
+		          command=pick_ai).pack(fill=tk.X, padx=10, pady=5)
+		tk.Button(popup, text="Close", bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0,
+		          command=popup.destroy).pack(fill=tk.X, padx=10, pady=(15, 10))
+
+	def load_avatars(self) -> None:
+		scaled_size = max(10, int(self.avatar_size * (self.font_size / 12.0)))
+		if self.user_avatar_path and os.path.exists(self.user_avatar_path):
+			try:
+				img = Image.open(self.user_avatar_path).resize((scaled_size, scaled_size), Image.Resampling.LANCZOS)
+				self.user_avatar_tk = ImageTk.PhotoImage(img)
+			except Exception:
+				self.user_avatar_tk = None
+		else:
+			self.user_avatar_tk = None
+
+		if self.ai_avatar_path and os.path.exists(self.ai_avatar_path):
+			try:
+				img = Image.open(self.ai_avatar_path).resize((scaled_size, scaled_size), Image.Resampling.LANCZOS)
+				self.ai_avatar_tk = ImageTk.PhotoImage(img)
+			except Exception:
+				self.ai_avatar_tk = None
+		else:
+			self.ai_avatar_tk = None
+
+	@staticmethod
+	def _safe_shortcut(func: Callable) -> Callable:
 		def wrapper(event: Any) -> str | None:
 			if getattr(event, 'state', 0) & 131072:
 				return None
@@ -685,7 +846,7 @@ class ChatUI:
 
 		return wrapper
 
-	def toggle_image_panel(self, event: Any = None) -> None:
+	def toggle_image_panel(self, _: Any = None) -> None:
 		if self.image_panel_visible:
 			self.content_panes.forget(self.image_panel)
 		else:
@@ -693,6 +854,8 @@ class ChatUI:
 		self.image_panel_visible = not self.image_panel_visible
 
 	def upload_image(self) -> None:
+		if not self.manager.current_session_id:
+			return
 		file_path = filedialog.askopenfilename(filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp *.gif")])
 		if file_path:
 			self.manager.chat_sessions[self.manager.current_session_id]["image_path"] = file_path
@@ -700,6 +863,8 @@ class ChatUI:
 			self._load_session_image()
 
 	def clear_image(self) -> None:
+		if not self.manager.current_session_id:
+			return
 		session = self.manager.chat_sessions.get(self.manager.current_session_id, {})
 		if "image_path" in session:
 			del session["image_path"]
@@ -721,7 +886,7 @@ class ChatUI:
 			self.current_image = None
 			self.image_canvas.delete("all")
 
-	def resize_image(self, event: Any = None) -> None:
+	def resize_image(self, _: Any = None) -> None:
 		if not self.current_image:
 			return
 		self.display_image()
@@ -743,12 +908,66 @@ class ChatUI:
 		self.image_canvas.delete("all")
 		self.image_canvas.create_image(canvas_w // 2, canvas_h // 2, anchor=tk.CENTER, image=self.current_photo)
 
+	def apply_theme(self) -> None:
+		self.root.configure(bg=self.theme.bg_main)
+
+		widgets_to_update = [
+			(self.sidebar, "bg_panel"),
+			(self.top_bar, "bg_panel"),
+			(self.content_panes, "bg_panel"),
+			(self.chat_area, "bg_panel"),
+			(self.input_frame, "bg_panel"),
+			(self.image_panel, "bg_panel"),
+			(self.img_btn_frame, "bg_panel"),
+			(self.action_btn_frame, "bg_input"),
+			(self.settings_frame, "bg_panel"),
+			(self.separator, "bg_separator"),
+			(self.title_label, "bg_panel", "fg_accent"),
+			(self.toggle_sidebar_btn, "bg_input", "fg_accent"),
+			(self.new_chat_btn, "bg_input", "fg_accent"),
+			(self.toggle_img_panel_btn, "bg_input", "fg_accent"),
+			(self.rp_settings_btn, "bg_input", "fg_accent"),
+			(self.open_settings_btn, "bg_input", "fg_accent"),
+			(self.history_listbox, "bg_panel", "fg_accent"),
+			(self.input_box, "bg_input", "fg_text"),
+			(self.retry_btn, "bg_button", "fg_accent"),
+			(self.edit_ai_btn, "bg_button", "fg_accent"),
+			(self.edit_user_btn, "bg_button", "fg_accent"),
+			(self.text_display, "bg_panel", "fg_accent"),
+			(self.avatar_btn, "bg_input", "fg_accent"),
+			(self.upload_btn, "bg_input", "fg_accent"),
+			(self.clear_btn, "bg_input", "fg_accent"),
+			(self.image_canvas, "bg_panel"),
+			(self.main_frame, "bg_main"),
+			(self.stats_label, "bg_panel", "fg_muted"),
+			(self.rename_chat_btn, "bg_input", "fg_accent"),
+			(self.delete_chat_btn, "bg_input", "fg_accent"),
+			(self.content_panes, "bg_main")
+		]
+
+		for item in widgets_to_update:
+			widget = item[0]
+			if widget and widget.winfo_exists():
+				bg_color = getattr(self.theme, item[1])
+				widget.configure(bg=bg_color)
+				if len(item) > 2:
+					fg_color = getattr(self.theme, item[2])
+					widget.configure(fg=fg_color)
+
+		if self.text_display.winfo_exists():
+			self.text_display.tag_configure("user", foreground=self.theme.fg_text)
+			self.text_display.tag_configure("ai", foreground=self.theme.fg_accent)
+			self.text_display.tag_configure("ai_loading", foreground=self.theme.fg_accent)
+			self.text_display.tag_configure("green", foreground=self.theme.fg_green)
+			self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
+
 	def apply_fonts(self) -> None:
+		self.apply_theme()
 		font_tuple = (self.font_family, self.font_size)
 		bold_font = (self.font_family, self.font_size, "bold")
 		italic_font = (self.font_family, self.font_size, "italic")
 
-		for widget in [self.text_display, self.input_box, getattr(self, 'current_edit_box', None)]:
+		for widget in [self.text_display, self.input_box, self.current_edit_box]:
 			if widget and widget.winfo_exists():
 				widget.configure(font=font_tuple)
 				widget.tag_configure("bold", font=bold_font)
@@ -764,12 +983,9 @@ class ChatUI:
 		self.root.after(10, self.apply_live_formatting)
 
 	def apply_live_formatting(self, event: Any = None) -> None:
-		widgets = [event.widget] if event and getattr(event, "widget", None) and isinstance(event.widget,
-		                                                                                    tk.Text) else [
-			self.input_box]
+		widgets = [event.widget] if event and isinstance(getattr(event, "widget", None), tk.Text) else [self.input_box]
 
-		if getattr(self, 'current_edit_box',
-		           None) and self.current_edit_box.winfo_exists() and self.current_edit_box not in widgets:
+		if self.current_edit_box and self.current_edit_box.winfo_exists() and self.current_edit_box not in widgets:
 			widgets.append(self.current_edit_box)
 
 		for w in widgets:
@@ -847,15 +1063,19 @@ class ChatUI:
 		self.apply_live_formatting()
 		return "break"
 
-	def zoom_in(self, event: Any = None) -> str:
+	def zoom_in(self, _: Any = None) -> str:
 		self.font_size += 1
 		self.apply_fonts()
+		self.load_avatars()
+		self.refresh_chat_display()
 		return "break"
 
-	def zoom_out(self, event: Any = None) -> str:
+	def zoom_out(self, _: Any = None) -> str:
 		if self.font_size > 6:
 			self.font_size -= 1
 			self.apply_fonts()
+			self.load_avatars()
+			self.refresh_chat_display()
 		return "break"
 
 	def zoom_scroll(self, event: Any) -> str:
@@ -868,6 +1088,8 @@ class ChatUI:
 	def _bind_events(self) -> None:
 		self.top_bar.bind("<ButtonPress-1>", self.start_drag)
 		self.top_bar.bind("<B1-Motion>", self.do_drag)
+
+		self.root.bind("<Control-grave>", self.toggle_app_visibility)
 
 		for key in ("<Control-q>", "<Control-Q>"):
 			self.root.bind(key, self._safe_shortcut(lambda e: self.root.quit()))
@@ -923,7 +1145,7 @@ class ChatUI:
 		new_height = max(400, self._resize_data["height"] + (event.y_root - self._resize_data["y"]))
 		self.root.geometry(f"{new_width}x{new_height}")
 
-	def toggle_sidebar(self, event: Any = None) -> None:
+	def toggle_sidebar(self, _: Any = None) -> None:
 		if self.sidebar_visible:
 			self.content_panes.forget(self.sidebar)
 		else:
@@ -1123,79 +1345,122 @@ class ChatUI:
 		          command=popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
 		popup.bind("<Escape>", lambda e: popup.destroy())
 
-	def open_settings_dialog(self, event: Any = None) -> None:
-		if getattr(self, 'settings_popup', None) and self.settings_popup.winfo_exists():
+	def open_settings_dialog(self, _: Any = None) -> None:
+		from tkinter import colorchooser
+		if self.settings_popup and self.settings_popup.winfo_exists():
 			self.settings_popup.focus_set()
 			return
 
 		self.settings_popup = tk.Toplevel(self.root)
 		self.settings_popup.overrideredirect(True)
-		self.settings_popup.geometry(f"450x700+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 20}")
+		self.settings_popup.geometry(f"500x850+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 20}")
 		self.settings_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		self.settings_popup.attributes("-topmost", True)
 
-		tk.Label(self.settings_popup, text="Model Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		tk.Label(self.settings_popup, text="Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
 		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
-		container = tk.Frame(self.settings_popup, bg=self.theme.bg_panel)
-		container.pack(fill=tk.BOTH, expand=True, padx=20)
 
-		def make_label(text: str, row: int) -> None:
-			tk.Label(container, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+		canvas = tk.Canvas(self.settings_popup, bg=self.theme.bg_panel, highlightthickness=0)
+		scrollbar = ttk.Scrollbar(self.settings_popup, orient="vertical", command=canvas.yview)
+		scrollable_frame = tk.Frame(canvas, bg=self.theme.bg_panel)
+
+		scrollable_frame.bind(
+			"<Configure>",
+			lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+		)
+
+		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=480)
+		canvas.configure(yscrollcommand=scrollbar.set)
+
+		canvas.pack(side="left", fill="both", expand=True, padx=(20, 0))
+		scrollbar.pack(side="right", fill="y")
+
+		container = scrollable_frame
+
+		def make_label(text: str, row: int, parent=container) -> None:
+			tk.Label(parent, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
 			         font=(self.font_family, self.font_size)).grid(row=row, column=0, sticky="w", pady=5)
 
-		make_label("Model:", 0)
+		tk.Label(container, text="Model Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=10)
+
+		row = 1
+		make_label("Model:", row)
 		model_var = tk.StringVar(value=self.config.current_model)
 		model_cb = ttk.Combobox(container, textvariable=model_var, values=self.config.models, state="readonly")
-		model_cb.grid(row=0, column=1, sticky="ew", pady=5)
+		model_cb.grid(row=row, column=1, sticky="ew", pady=5)
+		row += 1
 
-		def make_scale(row: int, from_: float, to: float, res: float, val: float) -> tk.Scale:
+		def make_scale(r: int, from_: float, to: float, res: float, val: float) -> tk.Scale:
 			s = tk.Scale(container, from_=from_, to=to, resolution=res, orient=tk.HORIZONTAL, bg=self.theme.bg_panel,
 			             fg=self.theme.fg_accent, bd=0, highlightthickness=0)
 			s.set(val)
-			s.grid(row=row, column=1, sticky="ew", pady=5)
+			s.grid(row=r, column=1, sticky="ew", pady=5)
 			return s
 
-		temp_scale = make_scale(1, 0.0, 2.0, 0.1, self.config.temperature)
-		top_p_scale = make_scale(2, 0.0, 1.0, 0.01, self.config.top_p)
-		top_k_scale = make_scale(3, 1, 100, 1, self.config.top_k)
-		max_tok_scale = make_scale(4, 1, 8192, 1, self.config.max_tokens)
-		pres_scale = make_scale(5, -2.0, 2.0, 0.1, self.config.presence_penalty)
-		freq_scale = make_scale(6, -2.0, 2.0, 0.1, self.config.frequency_penalty)
+		temp_scale = make_scale(row, 0.0, 2.0, 0.1, self.config.temperature); make_label("Temperature:", row); row += 1
+		top_p_scale = make_scale(row, 0.0, 1.0, 0.01, self.config.top_p); make_label("Top P:", row); row += 1
+		top_k_scale = make_scale(row, 1, 100, 1, self.config.top_k); make_label("Top K:", row); row += 1
+		max_tok_scale = make_scale(row, 1, 8192, 1, self.config.max_tokens); make_label("Max Tokens:", row); row += 1
+		pres_scale = make_scale(row, -2.0, 2.0, 0.1, self.config.presence_penalty); make_label("Presence Penalty:", row); row += 1
+		freq_scale = make_scale(row, -2.0, 2.0, 0.1, self.config.frequency_penalty); make_label("Freq Penalty:", row); row += 1
 
-		make_label("Temperature:", 1)
-		make_label("Top P:", 2)
-		make_label("Top K:", 3)
-		make_label("Max Tokens:", 4)
-		make_label("Presence Penalty:", 5)
-		make_label("Freq Penalty:", 6)
-		make_label("Thinking Level:", 7)
-
+		make_label("Thinking Level:", row)
 		think_var = tk.StringVar(value=self.config.thinking_level)
 		think_cb = ttk.Combobox(container, textvariable=think_var, values=self.config.thinking_levels, state="readonly")
-		think_cb.grid(row=7, column=1, sticky="ew", pady=5)
+		think_cb.grid(row=row, column=1, sticky="ew", pady=5)
+		row += 1
 
 		paid_tier_var = tk.BooleanVar(value=self.config.is_paid_tier)
 		paid_tier_cb = tk.Checkbutton(container, text="Paid Account (Hide RPM, Track Cost)", variable=paid_tier_var,
 		                              bg=self.theme.bg_panel, fg=self.theme.fg_text, selectcolor=self.theme.bg_input,
 		                              activebackground=self.theme.bg_panel, activeforeground=self.theme.fg_text)
-		paid_tier_cb.grid(row=8, column=0, columnspan=2, sticky="w", pady=10)
+		paid_tier_cb.grid(row=row, column=0, columnspan=2, sticky="w", pady=10)
+		row += 1
 
-		# Context Cache Overview Section
-		ttk.Separator(container, orient="horizontal").grid(row=9, column=0, columnspan=2, sticky="ew", pady=(15, 10))
+		ttk.Separator(container, orient="horizontal").grid(row=row, column=0, columnspan=2, sticky="ew", pady=15)
+		row += 1
+		tk.Label(container, text="Appearance Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).grid(row=row, column=0, columnspan=2, sticky="w", pady=10)
+		row += 1
+
+		color_vars = {}
+		for color_name in self.theme.to_dict().keys():
+			make_label(f"{color_name}:", row)
+			c_var = tk.StringVar(value=getattr(self.theme, color_name))
+			color_vars[color_name] = c_var
+
+			c_frame = tk.Frame(container, bg=self.theme.bg_panel)
+			c_frame.grid(row=row, column=1, sticky="ew")
+
+			c_entry = tk.Entry(c_frame, textvariable=c_var, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0, width=10)
+			c_entry.pack(side=tk.LEFT, padx=5, pady=2, fill=tk.X, expand=True)
+
+			def pick_color(name=color_name, var=c_var):
+				color = colorchooser.askcolor(initialcolor=var.get(), title=f"Pick {name}")[1]
+				if color:
+					var.set(color)
+
+			tk.Button(c_frame, text="Pick", bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0,
+			          command=pick_color).pack(side=tk.RIGHT, padx=5)
+			row += 1
+
+		ttk.Separator(container, orient="horizontal").grid(row=row, column=0, columnspan=2, sticky="ew", pady=15)
+		row += 1
 		tk.Label(container, text="Context Caching Statistics", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-		         font=(self.font_family, self.font_size, "bold")).grid(row=10, column=0, columnspan=2, sticky="w",
-		                                                               pady=(0, 5))
+		         font=(self.font_family, self.font_size, "bold")).grid(row=row, column=0, columnspan=2, sticky="w", pady=5)
+		row += 1
 
 		stats = self.manager.get_cache_stats()
 
-		def make_stat_label(text: str, row: int) -> None:
+		def make_stat_label(text: str, r: int) -> None:
 			tk.Label(container, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-			         font=(self.font_family, 10)).grid(row=row, column=0, columnspan=2, sticky="w", pady=2)
+			         font=(self.font_family, 10)).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
 
-		make_stat_label(f"Status: {stats['status']}", 11)
-		make_stat_label(f"Estimated Tokens: {stats['tokens']:,}", 12)
-		make_stat_label(f"Storage Cost: ~{stats['cost_ph']:.4f} PLN / hour", 13)
-		make_stat_label(f"Time to Live: {stats['expires']}", 14)
+		make_stat_label(f"Status: {stats['status']}", row); row += 1
+		make_stat_label(f"Estimated Tokens: {stats['tokens']:,}", row); row += 1
+		make_stat_label(f"Storage Cost: ~{stats['cost_ph']:.4f} PLN / hour", row); row += 1
+		make_stat_label(f"Time to Live: {stats['expires']}", row); row += 1
 
 		def update_dynamic_limits(event: Any = None) -> None:
 			caps = self.config.get_model_caps(model_var.get())
@@ -1203,8 +1468,7 @@ class ChatUI:
 			if max_tok_scale.get() > caps["max_tokens"]:
 				max_tok_scale.set(caps["max_tokens"])
 
-			state, color = (tk.NORMAL, self.theme.fg_accent) if caps["penalties"] else (tk.DISABLED,
-			                                                                            self.theme.fg_muted)
+			state, color = (tk.NORMAL, self.theme.fg_accent) if caps["penalties"] else (tk.DISABLED, self.theme.fg_muted)
 			pres_scale.config(state=state, fg=color)
 			freq_scale.config(state=state, fg=color)
 
@@ -1224,6 +1488,14 @@ class ChatUI:
 			self.config.frequency_penalty = freq_scale.get()
 			self.config.thinking_level = think_var.get()
 			self.config.is_paid_tier = paid_tier_var.get()
+
+			new_theme_data = {name: var.get() for name, var in color_vars.items()}
+			self.config.theme = Theme.from_dict(new_theme_data)
+			self.theme = self.config.theme
+
+			self.config.save_config()
+			self.apply_fonts() # This calls apply_theme
+
 			self.manager._update_context_cache()
 			self.manager._init_chat_object()
 			self.settings_popup.destroy()
@@ -1238,7 +1510,7 @@ class ChatUI:
 	def start_loading(self) -> None:
 		self.is_loading = True
 		self.text_display.config(state=tk.NORMAL)
-		self.text_display.insert(tk.END, "⠋ Thinking...\n\n", "ai_loading")
+		self.text_display.insert(tk.END, "⠋ Thinking...\n", "ai_loading")
 		self.text_display.see(tk.END)
 		self.text_display.config(state=tk.DISABLED)
 		self.animate_spinner()
@@ -1340,6 +1612,8 @@ class ChatUI:
 		return "break"
 
 	def retry_last_message(self) -> None:
+		if not self.manager.current_session_id:
+			return
 		session = self.manager.chat_sessions.get(self.manager.current_session_id, {}).get("history", [])
 		if len(session) >= 2 and session[-1]["role"] == "ai" and session[-2]["role"] == "user":
 			user_text = session[-2]["content"]
@@ -1371,7 +1645,8 @@ class ChatUI:
 		self.stop_loading()
 		self.append_message("ai", f"Error: {error}" if error else text)
 
-	def insert_formatted(self, widget: tk.Text, text: str, base_tag: str) -> None:
+	@staticmethod
+	def insert_formatted(widget: tk.Text, text: str, base_tag: str) -> None:
 		for part in re.split(r'(#[^\n]*|\*\*.*?\*\*|\*.*?\*|"[^"]*?")', text):
 			if part.startswith('#'):
 				widget.insert(tk.END, part, (base_tag, "grey"))
@@ -1386,8 +1661,17 @@ class ChatUI:
 
 	def append_message(self, role: str, text: str) -> None:
 		self.text_display.config(state=tk.NORMAL)
+
+		if role == "user" and self.user_avatar_tk:
+			self.text_display.insert(tk.END, " ", role)
+			self.text_display.image_create(tk.END, image=self.user_avatar_tk)
+			self.text_display.insert(tk.END, "\n", role)
+		elif role == "ai" and self.ai_avatar_tk:
+			self.text_display.image_create(tk.END, image=self.ai_avatar_tk)
+			self.text_display.insert(tk.END, "\n", role)
+
 		self.insert_formatted(self.text_display, str(text), role)
-		self.text_display.insert(tk.END, "\n\n", role)
+		self.text_display.insert(tk.END, "\n", role)
 		self.text_display.see(tk.END)
 		self.text_display.config(state=tk.DISABLED)
 
@@ -1400,14 +1684,28 @@ class ChatUI:
 			self.text_display.config(state=tk.DISABLED)
 			return
 
+		self.user_avatar_path = session_data.get("user_avatar")
+		self.ai_avatar_path = session_data.get("ai_avatar")
+		self.load_avatars()
+
 		history = session_data.get("history", [])
 		sum_idx = session_data.get("summarized_index", -1)
 
 		for i, msg in enumerate(history):
 			if session_data.get("type") == "roleplay" and i == sum_idx:
-				self.insert_formatted(self.text_display, "# --- Memory Compressed Above This Line ---\n\n", "ai")
-			self.insert_formatted(self.text_display, str(msg["content"]), msg["role"])
-			self.text_display.insert(tk.END, "\n\n", msg["role"])
+				self.insert_formatted(self.text_display, "# --- Memory Compressed Above This Line ---\n", "ai")
+
+			role = msg["role"]
+			if role == "user" and self.user_avatar_tk:
+				self.text_display.insert(tk.END, " ", role)
+				self.text_display.image_create(tk.END, image=self.user_avatar_tk)
+				self.text_display.insert(tk.END, "\n", role)
+			elif role == "ai" and self.ai_avatar_tk:
+				self.text_display.image_create(tk.END, image=self.ai_avatar_tk)
+				self.text_display.insert(tk.END, "\n", role)
+
+			self.insert_formatted(self.text_display, str(msg["content"]), role)
+			self.text_display.insert(tk.END, "\n", role)
 
 		if session_data.get("type") == "roleplay":
 			self.rp_settings_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2, before=self.open_settings_btn)
