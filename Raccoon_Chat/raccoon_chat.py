@@ -922,8 +922,6 @@ class ChatUI:
 			(self.action_btn_frame, "bg_input"),
 			(self.settings_frame, "bg_panel"),
 			(self.separator, "bg_separator"),
-			(self.title_label, "bg_panel", "fg_accent"),
-			(self.toggle_sidebar_btn, "bg_input", "fg_accent"),
 			(self.new_chat_btn, "bg_input", "fg_accent"),
 			(self.toggle_img_panel_btn, "bg_input", "fg_accent"),
 			(self.rp_settings_btn, "bg_input", "fg_accent"),
