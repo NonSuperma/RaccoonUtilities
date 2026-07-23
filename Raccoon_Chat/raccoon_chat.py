@@ -712,6 +712,9 @@ class ChatUI:
 		self.rp_settings_btn = tk.Button(self.settings_frame, text="RP Settings", bg=self.theme.bg_input,
 		                                 fg=self.theme.fg_accent, bd=0, command=lambda: self.open_rp_setup(False))
 
+		self.overview_btn = tk.Button(self.settings_frame, text="Overview", bg=self.theme.bg_input,
+		                               fg=self.theme.fg_accent, bd=0, command=self.open_overview_dialog)
+
 		self.open_settings_btn = tk.Button(self.settings_frame, text="Settings (Ctrl+P)", bg=self.theme.bg_input,
 		                                   fg=self.theme.fg_accent, bd=0, command=self.open_settings_dialog)
 		self.open_settings_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2)
@@ -788,6 +791,9 @@ class ChatUI:
 		popup.geometry(f"300x160+{self.root.winfo_x() + 300}+{self.root.winfo_y() + 250}")
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
+
+		popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, popup))
+		popup.bind("<B1-Motion>", lambda e: self.do_drag(e, popup))
 
 		def pick_user():
 			path = filedialog.askopenfilename(filetypes=[("Images", "*.png *.jpg *.jpeg")])
@@ -925,6 +931,7 @@ class ChatUI:
 			(self.new_chat_btn, "bg_input", "fg_accent"),
 			(self.toggle_img_panel_btn, "bg_input", "fg_accent"),
 			(self.rp_settings_btn, "bg_input", "fg_accent"),
+			(self.overview_btn, "bg_input", "fg_accent"),
 			(self.open_settings_btn, "bg_input", "fg_accent"),
 			(self.history_listbox, "bg_panel", "fg_accent"),
 			(self.input_box, "bg_input", "fg_text"),
@@ -1122,13 +1129,19 @@ class ChatUI:
 			w.bind("<Motion>", self.check_button_visibility)
 			w.bind("<Leave>", self.on_input_leave)
 
-	def start_drag(self, event: Any) -> None:
+	def _bind_scroll(self, widget: tk.Widget, canvas: tk.Canvas) -> None:
+		widget.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"), add="+")
+		for child in widget.winfo_children():
+			self._bind_scroll(child, canvas)
+
+	def start_drag(self, event: Any, window: Optional[tk.Toplevel] = None) -> None:
 		self._drag_data.update({"x": event.x, "y": event.y})
 
-	def do_drag(self, event: Any) -> None:
-		x = self.root.winfo_x() - self._drag_data["x"] + event.x
-		y = self.root.winfo_y() - self._drag_data["y"] + event.y
-		self.root.geometry(f"+{x}+{y}")
+	def do_drag(self, event: Any, window: Optional[tk.Toplevel] = None) -> None:
+		target = window if window else self.root
+		x = target.winfo_x() - self._drag_data["x"] + event.x
+		y = target.winfo_y() - self._drag_data["y"] + event.y
+		target.geometry(f"+{x}+{y}")
 
 	def start_resize(self, event: Any) -> None:
 		self._resize_data.update({
@@ -1194,6 +1207,9 @@ class ChatUI:
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
+		popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, popup))
+		popup.bind("<B1-Motion>", lambda e: self.do_drag(e, popup))
+
 		entry = tk.Entry(popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
 		                 font=(self.font_family, self.font_size))
 		entry.pack(fill=tk.X, padx=10, pady=35)
@@ -1223,6 +1239,9 @@ class ChatUI:
 		popup.geometry(f"600x400+{self.root.winfo_x() + 150}+{self.root.winfo_y() + 100}")
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
+
+		popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, popup))
+		popup.bind("<B1-Motion>", lambda e: self.do_drag(e, popup))
 
 		btn_frame = tk.Frame(popup, bg=self.theme.bg_panel)
 		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=5)
@@ -1261,6 +1280,9 @@ class ChatUI:
 		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		popup.attributes("-topmost", True)
 
+		popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, popup))
+		popup.bind("<B1-Motion>", lambda e: self.do_drag(e, popup))
+
 		tk.Label(popup, text="Roleplay Configuration", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
 		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
 
@@ -1278,7 +1300,8 @@ class ChatUI:
 
 		scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 		canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-		popup.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
+
+		self._bind_scroll(popup, canvas)
 
 		boxes = {}
 		fields = [
@@ -1308,7 +1331,6 @@ class ChatUI:
 
 			t_box.bind("<KeyPress>", self.intercept_polish_chars)
 			t_box.bind("<KeyRelease>", self.apply_live_formatting)
-			t_box.bind("<MouseWheel>", lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"))
 			boxes[key] = t_box
 
 			if not is_new and key == "first_message":
@@ -1351,9 +1373,12 @@ class ChatUI:
 
 		self.settings_popup = tk.Toplevel(self.root)
 		self.settings_popup.overrideredirect(True)
-		self.settings_popup.geometry(f"500x850+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 20}")
+		self.settings_popup.geometry(f"850x850+{self.root.winfo_x() + 75}+{self.root.winfo_y() + 20}")
 		self.settings_popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
 		self.settings_popup.attributes("-topmost", True)
+
+		self.settings_popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, self.settings_popup))
+		self.settings_popup.bind("<B1-Motion>", lambda e: self.do_drag(e, self.settings_popup))
 
 		tk.Label(self.settings_popup, text="Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
 		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
@@ -1367,98 +1392,89 @@ class ChatUI:
 			lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
 		)
 
-		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=480)
+		canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=830)
 		canvas.configure(yscrollcommand=scrollbar.set)
 
 		canvas.pack(side="left", fill="both", expand=True, padx=(20, 0))
 		scrollbar.pack(side="right", fill="y")
 
+		self._bind_scroll(self.settings_popup, canvas)
+
 		container = scrollable_frame
+		container.grid_columnconfigure(0, weight=1)
+		container.grid_columnconfigure(1, weight=1)
 
-		def make_label(text: str, row: int, parent=container) -> None:
-			tk.Label(parent, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-			         font=(self.font_family, self.font_size)).grid(row=row, column=0, sticky="w", pady=5)
+		# Appearance Settings to the LEFT (column 0)
+		appearance_frame = tk.Frame(container, bg=self.theme.bg_panel)
+		appearance_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
 
-		tk.Label(container, text="Model Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-		         font=(self.font_family, self.font_size, "bold")).grid(row=0, column=0, columnspan=2, sticky="w", pady=10)
-
-		row = 1
-		make_label("Model:", row)
-		model_var = tk.StringVar(value=self.config.current_model)
-		model_cb = ttk.Combobox(container, textvariable=model_var, values=self.config.models, state="readonly")
-		model_cb.grid(row=row, column=1, sticky="ew", pady=5)
-		row += 1
-
-		def make_scale(r: int, from_: float, to: float, res: float, val: float) -> tk.Scale:
-			s = tk.Scale(container, from_=from_, to=to, resolution=res, orient=tk.HORIZONTAL, bg=self.theme.bg_panel,
-			             fg=self.theme.fg_accent, bd=0, highlightthickness=0)
-			s.set(val)
-			s.grid(row=r, column=1, sticky="ew", pady=5)
-			return s
-
-		temp_scale = make_scale(row, 0.0, 2.0, 0.1, self.config.temperature); make_label("Temperature:", row); row += 1
-		top_p_scale = make_scale(row, 0.0, 1.0, 0.01, self.config.top_p); make_label("Top P:", row); row += 1
-		top_k_scale = make_scale(row, 1, 100, 1, self.config.top_k); make_label("Top K:", row); row += 1
-		max_tok_scale = make_scale(row, 1, 8192, 1, self.config.max_tokens); make_label("Max Tokens:", row); row += 1
-		pres_scale = make_scale(row, -2.0, 2.0, 0.1, self.config.presence_penalty); make_label("Presence Penalty:", row); row += 1
-		freq_scale = make_scale(row, -2.0, 2.0, 0.1, self.config.frequency_penalty); make_label("Freq Penalty:", row); row += 1
-
-		make_label("Thinking Level:", row)
-		think_var = tk.StringVar(value=self.config.thinking_level)
-		think_cb = ttk.Combobox(container, textvariable=think_var, values=self.config.thinking_levels, state="readonly")
-		think_cb.grid(row=row, column=1, sticky="ew", pady=5)
-		row += 1
-
-		paid_tier_var = tk.BooleanVar(value=self.config.is_paid_tier)
-		paid_tier_cb = tk.Checkbutton(container, text="Paid Account (Hide RPM, Track Cost)", variable=paid_tier_var,
-		                              bg=self.theme.bg_panel, fg=self.theme.fg_text, selectcolor=self.theme.bg_input,
-		                              activebackground=self.theme.bg_panel, activeforeground=self.theme.fg_text)
-		paid_tier_cb.grid(row=row, column=0, columnspan=2, sticky="w", pady=10)
-		row += 1
-
-		ttk.Separator(container, orient="horizontal").grid(row=row, column=0, columnspan=2, sticky="ew", pady=15)
-		row += 1
-		tk.Label(container, text="Appearance Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-		         font=(self.font_family, self.font_size, "bold")).grid(row=row, column=0, columnspan=2, sticky="w", pady=10)
-		row += 1
+		tk.Label(appearance_frame, text="Appearance Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=10)
 
 		color_vars = {}
 		for color_name in self.theme.to_dict().keys():
-			make_label(f"{color_name}:", row)
+			f = tk.Frame(appearance_frame, bg=self.theme.bg_panel)
+			f.pack(fill=tk.X, pady=2)
+			tk.Label(f, text=f"{color_name}:", bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			         font=(self.font_family, self.font_size)).pack(side=tk.LEFT)
+			
 			c_var = tk.StringVar(value=getattr(self.theme, color_name))
 			color_vars[color_name] = c_var
 
-			c_frame = tk.Frame(container, bg=self.theme.bg_panel)
-			c_frame.grid(row=row, column=1, sticky="ew")
+			c_entry = tk.Entry(f, textvariable=c_var, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0, width=10)
+			c_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
-			c_entry = tk.Entry(c_frame, textvariable=c_var, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0, width=10)
-			c_entry.pack(side=tk.LEFT, padx=5, pady=2, fill=tk.X, expand=True)
+			def pick_color_factory(name, var):
+				return lambda: var.set(colorchooser.askcolor(initialcolor=var.get(), title=f"Pick {name}")[1] or var.get())
 
-			def pick_color(name=color_name, var=c_var):
-				color = colorchooser.askcolor(initialcolor=var.get(), title=f"Pick {name}")[1]
-				if color:
-					var.set(color)
+			tk.Button(f, text="Pick", bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0,
+			          command=pick_color_factory(color_name, c_var)).pack(side=tk.RIGHT, padx=5)
 
-			tk.Button(c_frame, text="Pick", bg=self.theme.bg_button, fg=self.theme.fg_accent, bd=0,
-			          command=pick_color).pack(side=tk.RIGHT, padx=5)
-			row += 1
+		# Model Settings to the RIGHT (column 1)
+		model_settings_frame = tk.Frame(container, bg=self.theme.bg_panel)
+		model_settings_frame.grid(row=0, column=1, sticky="nsew")
 
-		ttk.Separator(container, orient="horizontal").grid(row=row, column=0, columnspan=2, sticky="ew", pady=15)
-		row += 1
-		tk.Label(container, text="Context Caching Statistics", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
-		         font=(self.font_family, self.font_size, "bold")).grid(row=row, column=0, columnspan=2, sticky="w", pady=5)
-		row += 1
+		tk.Label(model_settings_frame, text="Model Settings", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).pack(anchor="w", pady=10)
 
-		stats = self.manager.get_cache_stats()
+		def make_row(parent, label_text):
+			f = tk.Frame(parent, bg=self.theme.bg_panel)
+			f.pack(fill=tk.X, pady=2)
+			tk.Label(f, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			         font=(self.font_family, self.font_size)).pack(side=tk.LEFT)
+			return f
 
-		def make_stat_label(text: str, r: int) -> None:
-			tk.Label(container, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
-			         font=(self.font_family, 10)).grid(row=r, column=0, columnspan=2, sticky="w", pady=2)
+		f = make_row(model_settings_frame, "Model:")
+		model_var = tk.StringVar(value=self.config.current_model)
+		model_cb = ttk.Combobox(f, textvariable=model_var, values=self.config.models, state="readonly")
+		model_cb.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=5)
 
-		make_stat_label(f"Status: {stats['status']}", row); row += 1
-		make_stat_label(f"Estimated Tokens: {stats['tokens']:,}", row); row += 1
-		make_stat_label(f"Storage Cost: ~{stats['cost_ph']:.4f} PLN / hour", row); row += 1
-		make_stat_label(f"Time to Live: {stats['expires']}", row); row += 1
+		def make_scale_row(parent, label_text, from_, to, res, val):
+			tk.Label(parent, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			         font=(self.font_family, self.font_size)).pack(anchor="w", pady=(5, 0))
+			s = tk.Scale(parent, from_=from_, to=to, resolution=res, orient=tk.HORIZONTAL, bg=self.theme.bg_panel,
+			             fg=self.theme.fg_accent, bd=0, highlightthickness=0)
+			s.set(val)
+			s.pack(fill=tk.X, pady=(0, 5))
+			return s
+
+		temp_scale = make_scale_row(model_settings_frame, "Temperature:", 0.0, 2.0, 0.1, self.config.temperature)
+		top_p_scale = make_scale_row(model_settings_frame, "Top P:", 0.0, 1.0, 0.01, self.config.top_p)
+		top_k_scale = make_scale_row(model_settings_frame, "Top K:", 1, 100, 1, self.config.top_k)
+		max_tok_scale = make_scale_row(model_settings_frame, "Max Tokens:", 1, 8192, 1, self.config.max_tokens)
+		pres_scale = make_scale_row(model_settings_frame, "Presence Penalty:", -2.0, 2.0, 0.1, self.config.presence_penalty)
+		freq_scale = make_scale_row(model_settings_frame, "Freq Penalty:", -2.0, 2.0, 0.1, self.config.frequency_penalty)
+
+		f = make_row(model_settings_frame, "Thinking Level:")
+		think_var = tk.StringVar(value=self.config.thinking_level)
+		think_cb = ttk.Combobox(f, textvariable=think_var, values=self.config.thinking_levels, state="readonly")
+		think_cb.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=5)
+
+		paid_tier_var = tk.BooleanVar(value=self.config.is_paid_tier)
+		paid_tier_cb = tk.Checkbutton(model_settings_frame, text="Paid Account (Hide RPM, Track Cost)", variable=paid_tier_var,
+		                              bg=self.theme.bg_panel, fg=self.theme.fg_text, selectcolor=self.theme.bg_input,
+		                              activebackground=self.theme.bg_panel, activeforeground=self.theme.fg_text)
+		paid_tier_cb.pack(anchor="w", pady=10)
 
 		def update_dynamic_limits(event: Any = None) -> None:
 			caps = self.config.get_model_caps(model_var.get())
@@ -1504,6 +1520,40 @@ class ChatUI:
 		tk.Button(btn_frame, text="Cancel", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
 		          command=self.settings_popup.destroy, width=10).pack(side=tk.RIGHT, padx=5)
 		self.settings_popup.bind("<Escape>", lambda e: self.settings_popup.destroy())
+
+	def open_overview_dialog(self, _: Any = None) -> None:
+		popup = tk.Toplevel(self.root)
+		popup.overrideredirect(True)
+		popup.geometry(f"400x250+{self.root.winfo_x() + 250}+{self.root.winfo_y() + 250}")
+		popup.configure(bg=self.theme.bg_panel, bd=1, relief=tk.SOLID)
+		popup.attributes("-topmost", True)
+
+		popup.bind("<ButtonPress-1>", lambda e: self.start_drag(e, popup))
+		popup.bind("<B1-Motion>", lambda e: self.do_drag(e, popup))
+
+		tk.Label(popup, text="Context Caching Statistics", bg=self.theme.bg_panel, fg=self.theme.fg_accent,
+		         font=(self.font_family, self.font_size, "bold")).pack(pady=10)
+
+		stats_frame = tk.Frame(popup, bg=self.theme.bg_panel)
+		stats_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+		stats = self.manager.get_cache_stats()
+		def make_stat_label(text: str):
+			tk.Label(stats_frame, text=text, bg=self.theme.bg_panel, fg=self.theme.fg_text,
+			         font=(self.font_family, 10)).pack(anchor="w", pady=2)
+
+		make_stat_label(f"Status: {stats['status']}")
+		make_stat_label(f"Estimated Tokens: {stats['tokens']:,}")
+		make_stat_label(f"Storage Cost: ~{stats['cost_ph']:.4f} PLN / hour")
+		make_stat_label(f"Time to Live: {stats['expires']}")
+
+		btn_frame = tk.Frame(popup, bg=self.theme.bg_panel)
+		btn_frame.pack(fill=tk.X, side=tk.BOTTOM, pady=15)
+
+		tk.Button(btn_frame, text="Close", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+		          command=popup.destroy, width=10).pack(side=tk.RIGHT, padx=20)
+
+		popup.bind("<Escape>", lambda e: popup.destroy())
 
 	def start_loading(self) -> None:
 		self.is_loading = True
@@ -1706,8 +1756,10 @@ class ChatUI:
 			self.text_display.insert(tk.END, "\n", role)
 
 		if session_data.get("type") == "roleplay":
-			self.rp_settings_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2, before=self.open_settings_btn)
+			self.overview_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2, before=self.open_settings_btn)
+			self.rp_settings_btn.pack(side=tk.BOTTOM, fill=tk.X, pady=2, before=self.overview_btn)
 		else:
+			self.overview_btn.pack_forget()
 			self.rp_settings_btn.pack_forget()
 
 		self.text_display.see(tk.END)
