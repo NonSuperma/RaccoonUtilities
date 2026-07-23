@@ -69,3 +69,4 @@
 /RemoveBG/models/u2net.onnx
 /RemoveBG/models/isnet-general-use.onnx
 /RemoveBG/models/u2net_human_seg.onnx
+/chat_history.json
