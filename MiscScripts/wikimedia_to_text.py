@@ -10,6 +10,10 @@ import threading
 import tkinter as tk
 import ctypes
 from ctypes import wintypes
+import os
+import sys
+import subprocess
+import atexit
 
 
 def clean_wikidata_strings(text):
@@ -366,10 +370,14 @@ class ExtractorUI:
        self.console.bind("<B1-Motion>", self.do_drag)
        self.root.bind("<ButtonPress-1>", self.start_drag)
        self.root.bind("<B1-Motion>", self.do_drag)
-       self.root.bind("<Escape>", lambda e: self.root.quit())
+       self.root.bind("<Escape>", lambda e: self.quit_app())
+       self.root.protocol("WM_DELETE_WINDOW", self.quit_app)
 
        self.session = requests.Session()
        self.session.headers.update({"User-Agent": "RaccoonUtilitiesMediaFetcher/2.7"})
+
+       self.ahk_process = None
+       self.start_ahk()
 
        self.log_msg("Wikimedia Extractor UI initialized. Press ESC to close.")
        self.log_msg("Listening for Wikimedia Commons URLs...")
@@ -397,6 +405,74 @@ class ExtractorUI:
        self.console.insert(tk.END, formatted)
        self.console.see(tk.END)
        self.console.config(state=tk.DISABLED)
+
+    def start_ahk(self):
+       try:
+          if getattr(sys, 'frozen', False):
+             base_path = os.path.dirname(sys.executable)
+          else:
+             base_path = os.path.dirname(os.path.abspath(__file__))
+
+          ahk_path = os.path.normpath(os.path.join(base_path, "clipboard_format.ahk"))
+          if os.path.exists(ahk_path):
+             # Try to find AutoHotkey executable to avoid shell=True
+             ahk_exe = None
+             for path in [os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")]:
+                if path:
+                   potential_exe = os.path.join(path, "AutoHotkey", "AutoHotkey.exe")
+                   if os.path.exists(potential_exe):
+                      ahk_exe = potential_exe
+                      break
+                   potential_v2 = os.path.join(path, "AutoHotkey", "v2", "AutoHotkey64.exe")
+                   if os.path.exists(potential_v2):
+                      ahk_exe = potential_v2
+                      break
+
+             if ahk_exe:
+                self.ahk_process = subprocess.Popen([ahk_exe, ahk_path])
+             else:
+                # Fallback to shell=True if AutoHotkey.exe not found in standard paths
+                self.ahk_process = subprocess.Popen([ahk_path], shell=True)
+             
+             atexit.register(self.stop_ahk)
+          else:
+             self.log_msg(f"AHK script not found at: {ahk_path}")
+       except Exception as e:
+          self.log_msg(f"Failed to start AHK: {e}")
+
+    def stop_ahk(self):
+       if self.ahk_process:
+          try:
+             # Try taskkill with /T to kill child processes (important if shell=True was used)
+             subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.ahk_process.pid)], 
+                            capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+          except Exception:
+             try:
+                self.ahk_process.terminate()
+             except Exception:
+                pass
+          
+          # Forceful cleanup of any remaining instance of this specific script
+          try:
+             if getattr(sys, 'frozen', False):
+                base_path = os.path.dirname(sys.executable)
+             else:
+                base_path = os.path.dirname(os.path.abspath(__file__))
+             ahk_path = os.path.normpath(os.path.join(base_path, "clipboard_format.ahk"))
+             
+             # Kill by window title which typically includes the script path
+             # AHK windows usually have titles like "path\to\script.ahk - AutoHotkey v..."
+             subprocess.run(['taskkill', '/F', '/FI', f'WINDOWTITLE eq {ahk_path}*'], 
+                            capture_output=True, creationflags=subprocess.CREATE_NO_WINDOW)
+          except Exception:
+             pass
+
+          self.ahk_process = None
+
+    def quit_app(self):
+       self.stop_ahk()
+       self.root.destroy()
+       sys.exit(0)
 
     def monitor_clipboard(self):
        recent_clipboard = ""
