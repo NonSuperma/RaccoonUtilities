@@ -65,3 +65,7 @@
 /stream_downloader_V2/ffplay.exe
 /stream_downloader_V2/ffprobe.exe
 /stream_downloader_V2/yt-dlp.exe
+/RemoveBG/models/isnet-anime.onnx
+/RemoveBG/models/u2net.onnx
+/RemoveBG/models/isnet-general-use.onnx
+/RemoveBG/models/u2net_human_seg.onnx
