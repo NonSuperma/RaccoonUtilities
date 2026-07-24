@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable, Tuple
+from spellchecker import SpellChecker
 
 from PIL import Image, ImageTk
 from google import genai
@@ -299,6 +300,53 @@ class UsageTracker:
 		self.clean_old_data()
 		with self.lock:
 			return len(self.request_timestamps), sum(tc for ts, tc in self.token_history)
+
+
+class SpellCheckerHelper:
+	def __init__(self):
+		self.spell = SpellChecker()
+		# Common profanity to highlight
+		self.profanity = {
+			"fuck", "shit", "asshole", "bitch", "cunt", "dick", "pussy", 
+			"damn", "hell", "bastard", "cock", "faggot", "nigger"
+		}
+		# Ensure some contractions are known
+		self.spell.word_frequency.load_words([
+			"aren't", "can't", "couldn't", "didn't", "doesn't", "don't", 
+			"hadn't", "hasn't", "haven't", "he'd", "he'll", "he's", 
+			"i'd", "i'll", "i'm", "i've", "isn't", "it's", "let's", 
+			"mightn't", "mustn't", "shan't", "she'd", "she'll", "she's", 
+			"shouldn't", "that's", "there's", "they'd", "they'll", "they're", 
+			"they've", "we'd", "we're", "we've", "weren't", "what'll", 
+			"what're", "what's", "what've", "where's", "who'd", "who'll", 
+			"who're", "who's", "who've", "won't", "wouldn't", "you'd", 
+			"you'll", "you're", "you've"
+		])
+
+	def is_correct(self, word: str) -> bool:
+		if not word: return True
+		word_lower = word.lower()
+		if word_lower in self.profanity:
+			return False
+		# pyspellchecker works best with lowercase words
+		return word_lower in self.spell or not word.isalpha()
+
+	def suggestions(self, word: str) -> List[str]:
+		word_lower = word.lower()
+		# Handle common contraction errors manually for better suggestions
+		contraction_map = {
+			"arent": "aren't", "cant": "can't", "couldnt": "couldn't",
+			"didnt": "didn't", "doesnt": "doesn't", "dont": "don't",
+			"hadnt": "hadn't", "hasnt": "hasn't", "havent": "haven't",
+			"isnt": "isn't", "itll": "it'll", "its": "it's", "shouldnt": "shouldn't",
+			"werent": "weren't", "wont": "won't", "wouldnt": "wouldn't",
+			"youre": "you're", "theyre": "they're", "were": "we're"
+		}
+		if word_lower in contraction_map:
+			return [contraction_map[word_lower]] + list(self.spell.candidates(word) or [])
+
+		candidates = self.spell.candidates(word)
+		return list(candidates) if candidates else []
 
 
 class Formatter:
@@ -688,6 +736,8 @@ class ChatUI:
 
 		self.root = tk.Tk()
 		self.is_loading = False
+		self.spell_checker = SpellCheckerHelper()
+		self.spell_after_id = None
 		self.spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 		self.spinner_idx = 0
 
@@ -885,11 +935,12 @@ class ChatUI:
 		self.text_display = tk.Text(self.chat_area, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0,
 		                            highlightthickness=0, wrap=tk.WORD)
 		self.text_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
-		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text, spacing3=15)
-		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent, spacing3=15)
-		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent, spacing3=15)
+		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text, spacing3=4)
+		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent, spacing3=4)
+		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent, spacing3=4)
 		self.text_display.tag_configure("green", foreground=self.theme.fg_green)
 		self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
+		self.input_box.tag_configure("misspelled", underline=True)
 		self.text_display.config(state=tk.DISABLED)
 
 	def _build_image_panel(self) -> None:
@@ -1089,9 +1140,9 @@ class ChatUI:
 					widget.configure(fg=fg_color)
 
 		if self.text_display.winfo_exists():
-			self.text_display.tag_configure("user", foreground=self.theme.fg_text)
-			self.text_display.tag_configure("ai", foreground=self.theme.fg_accent)
-			self.text_display.tag_configure("ai_loading", foreground=self.theme.fg_accent)
+			self.text_display.tag_configure("user", foreground=self.theme.fg_text, spacing3=4)
+			self.text_display.tag_configure("ai", foreground=self.theme.fg_accent, spacing3=4)
+			self.text_display.tag_configure("ai_loading", foreground=self.theme.fg_accent, spacing3=4)
 			self.text_display.tag_configure("green", foreground=self.theme.fg_green)
 			self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
 
@@ -1184,17 +1235,37 @@ class ChatUI:
 		return None
 
 	def delete_word(self, event: Any = None) -> str:
+		widget = event.widget if event is not None else self.input_box
+		# If a selection exists, remove it
 		try:
-			self.input_box.delete(tk.SEL_FIRST, tk.SEL_LAST)
+			widget.delete(tk.SEL_FIRST, tk.SEL_LAST)
 		except tk.TclError:
-			text_before_cursor = self.input_box.get("1.0", tk.INSERT)
-			match = re.search(r'(\s+$|\S+)$', text_before_cursor)
-			if match:
-				self.input_box.delete(f"insert - {len(match.group(1))} chars", tk.INSERT)
+			# No selection — delete previous whole word
+			if isinstance(widget, tk.Text):
+				text_before_cursor = widget.get("1.0", tk.INSERT)
+				match = re.search(r'(\s+$|\S+)$', text_before_cursor)
+				if match:
+					widget.delete(f"insert - {len(match.group(1))} chars", tk.INSERT)
+			else:
+				# Entry-like widgets (tk.Entry, ttk.Entry)
+				try:
+					idx = int(widget.index(tk.INSERT))
+				except Exception:
+					idx = None
+				if not idx:
+					return "break"
+				text = widget.get()
+				left = text[:idx]
+				match = re.search(r'(\s+$|\S+)$', left)
+				if match:
+					start = idx - len(match.group(1))
+					widget.delete(start, tk.INSERT)
 
-		self.adjust_input_height()
-		self.check_button_visibility()
-		self.apply_live_formatting()
+		# If this was the main input box, keep UI in sync
+		if widget == self.input_box:
+			self.adjust_input_height()
+			self.check_button_visibility()
+			self.apply_live_formatting()
 		return "break"
 
 	def zoom_in(self, _: Any = None) -> str:
@@ -1250,9 +1321,17 @@ class ChatUI:
 		self.input_box.bind("<Shift-Return>", self.insert_newline)
 		self.input_box.bind("<<Paste>>", self.handle_paste)
 		self.input_box.bind("<KeyRelease>", self.on_key_release)
+		self.input_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, self.input_box))
 		self.input_box.bind("<Motion>", self.check_button_visibility)
 		self.input_box.bind("<Leave>", self.on_input_leave)
 		self.input_box.bind("<Control-BackSpace>", self.delete_word)
+		# Bind Ctrl+BackSpace for all Entry (tk and ttk) and Text widgets so every text input
+		# gains the standard whole-word delete behavior.
+		for cls in ("Entry", "TEntry", "Text"):
+			try:
+				self.root.bind_class(cls, "<Control-BackSpace>", self._safe_shortcut(self.delete_word))
+			except Exception:
+				pass
 
 		for w in (self.action_btn_frame, self.retry_btn, self.edit_ai_btn, self.edit_user_btn):
 			w.bind("<Motion>", self.check_button_visibility)
@@ -1389,8 +1468,10 @@ class ChatUI:
 		self.current_edit_box = tk.Text(popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
 		                                font=(self.font_family, self.font_size), wrap=tk.WORD)
 		self.current_edit_box.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+		self.current_edit_box.tag_configure("misspelled", underline=True)
 		self.current_edit_box.insert(1.0, old_text)
 		self.current_edit_box.focus_set()
+		self.check_spelling(self.current_edit_box)
 
 		def save_edit(event: Any = None) -> str:
 			new_text = self.current_edit_box.get(1.0, tk.END).strip()
@@ -1410,10 +1491,11 @@ class ChatUI:
 		popup.bind("<Escape>", lambda e: popup.destroy())
 		self.current_edit_box.bind("<Shift-Return>", save_edit)
 		self.current_edit_box.bind("<KeyPress>", self.intercept_polish_chars)
-		self.current_edit_box.bind("<KeyRelease>", self.apply_live_formatting)
+		self.current_edit_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(self.current_edit_box)))
+		self.current_edit_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, self.current_edit_box))
 		self.apply_fonts()
 
-	def open_rp_setup(self, is_new: bool = False) -> None:
+	def open_rp_setup(self, is_new: bool = False, auto_edit_first: bool = False) -> None:
 		popup = tk.Toplevel(self.root)
 		popup.overrideredirect(True)
 		self.center_window(popup, 1000, 900)
@@ -1470,11 +1552,14 @@ class ChatUI:
 			t_box = tk.Text(edit_popup, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
 			                font=(self.font_family, self.font_size), wrap=tk.WORD, undo=True)
 			t_box.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+			t_box.tag_configure("misspelled", underline=True)
 			t_box.insert(1.0, field_data[key])
 			t_box.focus_set()
+			self.check_spelling(t_box)
 
 			t_box.bind("<KeyPress>", self.intercept_polish_chars)
-			t_box.bind("<KeyRelease>", self.apply_live_formatting)
+			t_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(t_box)))
+			t_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, t_box))
 
 			def save_field():
 				new_val = t_box.get(1.0, tk.END).strip()
@@ -1511,10 +1596,26 @@ class ChatUI:
 			tk.Label(header_frame, text=label_text, bg=self.theme.bg_panel, fg=self.theme.fg_accent,
 			         font=(self.font_family, self.font_size, "bold")).pack(side=tk.LEFT)
 			
-			if not (not is_new and key == "first_message"):
+			is_locked = not is_new and key == "first_message" and field_data[key] and not auto_edit_first
+			
+			if not is_locked:
 				tk.Button(header_frame, text="Edit", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
 				          command=lambda k=key, l=label_text: open_edit_window(k, l), padx=10).pack(side=tk.RIGHT)
 			else:
+				def unlock_first_message():
+					from tkinter import messagebox
+					if messagebox.askyesno("Unlock First Message", "Unlocking will delete all chat history after the first message. Continue?"):
+						session_obj = self.manager.chat_sessions[self.manager.current_session_id]
+						if len(session_obj["history"]) > 1:
+							session_obj["history"] = session_obj["history"][:1]
+							self.manager.save_history()
+						
+						# Refresh popup and automatically open edit window
+						popup.destroy()
+						self.open_rp_setup(False, auto_edit_first=True)
+
+				tk.Button(header_frame, text="Unlock", bg=self.theme.bg_input, fg=self.theme.fg_accent, bd=0,
+				          command=unlock_first_message, padx=10).pack(side=tk.RIGHT)
 				tk.Label(header_frame, text="(Locked)", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
 				         font=(self.font_family, self.font_size - 2)).pack(side=tk.RIGHT)
 
@@ -1526,6 +1627,9 @@ class ChatUI:
 			               font=(self.font_family, self.font_size - 1), justify=tk.LEFT, anchor="nw", wraplength=450)
 			lbl.pack(fill=tk.BOTH, expand=True, padx=10, pady=(0, 5))
 			preview_labels[key] = lbl
+
+		if auto_edit_first:
+			open_edit_window("first_message", "First Message")
 
 		# Bottom part: Summary field (directly editable)
 		summary_header = tk.Frame(main_container, bg=self.theme.bg_panel)
@@ -1542,9 +1646,12 @@ class ChatUI:
 		summary_box = tk.Text(main_container, bg=self.theme.bg_input, fg=self.theme.fg_text, bd=0,
 		                    font=(self.font_family, self.font_size), height=10, wrap=tk.WORD, undo=True)
 		summary_box.pack(fill=tk.BOTH, expand=True, pady=5)
+		summary_box.tag_configure("misspelled", underline=True)
 		summary_box.insert(1.0, existing_summary)
 		summary_box.bind("<KeyPress>", self.intercept_polish_chars)
-		summary_box.bind("<KeyRelease>", self.apply_live_formatting)
+		summary_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(summary_box)))
+		summary_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, summary_box))
+		self.check_spelling(summary_box)
 
 		def save_rp_config() -> None:
 			configs = {k: v for k, v in field_data.items()}
@@ -1556,10 +1663,25 @@ class ChatUI:
 				self.refresh_history_list()
 			else:
 				session_obj = self.manager.chat_sessions[self.manager.current_session_id]
-				# Ensure first_message is not overwritten if locked
-				configs["first_message"] = existing_config.get("first_message", "")
+				# If first_message was locked, it wouldn't have been editable, so it's safe to use field_data[key] 
+				# if we correctly update field_data. Actually, if it's locked, we use the existing one.
+				# If it was UNLOCKED, it becomes editable and field_data is updated.
+				
+				# Check if it was locked during this popup session
+				was_locked = not is_new and existing_config.get("first_message", "")
+				# If it was locked, and it's still "locked" (no unlock button pressed that closed popup),
+				# then field_data["first_message"] would be the same as existing_config.
+				
+				# The logic: if it's editable, the user might have changed it.
+				# If it was locked, we didn't show the Edit button.
+				
 				session_obj["config"] = configs
 				session_obj["summary"] = summary_text
+				
+				# Update history if first message changed
+				if session_obj["history"] and session_obj["history"][0]["role"] == "ai":
+					session_obj["history"][0]["content"] = configs["first_message"]
+				
 				self.manager.save_history()
 				self.manager._update_context_cache()
 				self.manager._init_chat_object()
@@ -1795,6 +1917,86 @@ class ChatUI:
 		self.adjust_input_height()
 		self.check_button_visibility()
 		self.apply_live_formatting(event)
+		self.debounce_spell_check(self.input_box)
+
+	def debounce_spell_check(self, widget: tk.Text) -> None:
+		if self.spell_after_id:
+			self.root.after_cancel(self.spell_after_id)
+		self.spell_after_id = self.root.after(500, lambda: self.check_spelling(widget))
+
+	def check_spelling(self, widget: tk.Text) -> None:
+		widget.tag_remove("misspelled", "1.0", tk.END)
+		text = widget.get("1.0", tk.END)
+		
+		# regex to isolate words. We allow apostrophes inside words.
+		for match in re.finditer(r"\b\w+('\w+)?\b", text):
+			word = match.group()
+			start_pos = match.start()
+			
+			is_misspelled = not self.spell_checker.is_correct(word)
+			
+			# Check for sentence start capitalization
+			if not is_misspelled and word[0].islower():
+				# Look at characters before the word
+				preceding = text[:start_pos].rstrip()
+				if not preceding or preceding[-1] in ".!?":
+					is_misspelled = True
+
+			if is_misspelled:
+				start_idx = f"1.0 + {start_pos} chars"
+				end_idx = f"1.0 + {match.end()} chars"
+				widget.tag_add("misspelled", start_idx, end_idx)
+
+	def show_spell_menu(self, event: tk.Event, widget: tk.Text) -> str:
+		# Convert click position to text index
+		idx = widget.index(f"@{event.x},{event.y}")
+		
+		# Check if the click is on a misspelled word
+		tags = widget.tag_names(idx)
+		if "misspelled" not in tags:
+			return "continue"
+
+		# If it's Button-1, we want to show the menu but NOT interfere with selection if the user is dragging
+		# However, simple click is usually what triggers it.
+		
+		# Find word boundaries
+		word_start = widget.index(f"{idx} wordstart")
+		word_end = widget.index(f"{idx} wordend")
+		word = widget.get(word_start, word_end).strip()
+		
+		if not word:
+			return "continue"
+
+		suggestions = self.spell_checker.suggestions(word)
+		
+		# For sentence start capitalization errors that are otherwise correct
+		if word[0].islower() and self.spell_checker.is_correct(word):
+			capitalized = word[0].upper() + word[1:]
+			if capitalized not in suggestions:
+				suggestions = [capitalized] + suggestions
+
+		menu = tk.Menu(self.root, tearoff=0, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0)
+		
+		if suggestions:
+			for sug in suggestions[:5]: # Limit to top 5 suggestions
+				menu.add_command(label=sug, command=lambda s=sug, ws=word_start, we=word_end: self.replace_word(widget, ws, we, s))
+		else:
+			menu.add_command(label="(No suggestions)", state=tk.DISABLED)
+			
+		menu.add_separator()
+		menu.add_command(label="Add to dictionary", command=lambda w=word: self.add_to_dict(w, widget))
+
+		menu.tk_popup(event.x_root, event.y_root)
+		return "break"
+
+	def replace_word(self, widget: tk.Text, start: str, end: str, new_word: str) -> None:
+		widget.delete(start, end)
+		widget.insert(start, new_word)
+		self.check_spelling(widget)
+
+	def add_to_dict(self, word: str, widget: tk.Text) -> None:
+		self.spell_checker.spell.word_frequency.add(word.lower())
+		self.check_spelling(widget)
 
 	def check_button_visibility(self, event: Any = None) -> None:
 		if self.is_loading or self.input_box.get("1.0", "end-1c").strip():
