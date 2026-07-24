@@ -70,3 +70,5 @@
 /RemoveBG/models/isnet-general-use.onnx
 /RemoveBG/models/u2net_human_seg.onnx
 /chat_history.json
+/config.json
+/Raccoon_Chat/config.json
