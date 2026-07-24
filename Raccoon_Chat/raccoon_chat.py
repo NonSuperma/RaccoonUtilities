@@ -935,8 +935,8 @@ class ChatUI:
 		self.text_display = tk.Text(self.chat_area, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0,
 		                            highlightthickness=0, wrap=tk.WORD)
 		self.text_display.pack(fill=tk.BOTH, expand=True, padx=10, pady=(10, 0))
-		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text, spacing3=4)
-		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent, spacing3=4)
+		self.text_display.tag_configure("user", justify="right", foreground=self.theme.fg_text, spacing3=2)
+		self.text_display.tag_configure("ai", justify="left", foreground=self.theme.fg_accent, spacing3=1)
 		self.text_display.tag_configure("ai_loading", justify="left", foreground=self.theme.fg_accent, spacing3=4)
 		self.text_display.tag_configure("green", foreground=self.theme.fg_green)
 		self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
@@ -1140,8 +1140,8 @@ class ChatUI:
 					widget.configure(fg=fg_color)
 
 		if self.text_display.winfo_exists():
-			self.text_display.tag_configure("user", foreground=self.theme.fg_text, spacing3=4)
-			self.text_display.tag_configure("ai", foreground=self.theme.fg_accent, spacing3=4)
+			self.text_display.tag_configure("user", foreground=self.theme.fg_text, spacing3=2)
+			self.text_display.tag_configure("ai", foreground=self.theme.fg_accent, spacing3=1)
 			self.text_display.tag_configure("ai_loading", foreground=self.theme.fg_accent, spacing3=4)
 			self.text_display.tag_configure("green", foreground=self.theme.fg_green)
 			self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
@@ -1321,7 +1321,7 @@ class ChatUI:
 		self.input_box.bind("<Shift-Return>", self.insert_newline)
 		self.input_box.bind("<<Paste>>", self.handle_paste)
 		self.input_box.bind("<KeyRelease>", self.on_key_release)
-		self.input_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, self.input_box))
+		self.input_box.bind("<Button-3>", lambda e: self.show_spell_menu(e, self.input_box))
 		self.input_box.bind("<Motion>", self.check_button_visibility)
 		self.input_box.bind("<Leave>", self.on_input_leave)
 		self.input_box.bind("<Control-BackSpace>", self.delete_word)
@@ -1492,7 +1492,7 @@ class ChatUI:
 		self.current_edit_box.bind("<Shift-Return>", save_edit)
 		self.current_edit_box.bind("<KeyPress>", self.intercept_polish_chars)
 		self.current_edit_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(self.current_edit_box)))
-		self.current_edit_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, self.current_edit_box))
+		self.current_edit_box.bind("<Button-3>", lambda e: self.show_spell_menu(e, self.current_edit_box))
 		self.apply_fonts()
 
 	def open_rp_setup(self, is_new: bool = False, auto_edit_first: bool = False) -> None:
@@ -1559,7 +1559,7 @@ class ChatUI:
 
 			t_box.bind("<KeyPress>", self.intercept_polish_chars)
 			t_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(t_box)))
-			t_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, t_box))
+			t_box.bind("<Button-3>", lambda e: self.show_spell_menu(e, t_box))
 
 			def save_field():
 				new_val = t_box.get(1.0, tk.END).strip()
@@ -1650,7 +1650,7 @@ class ChatUI:
 		summary_box.insert(1.0, existing_summary)
 		summary_box.bind("<KeyPress>", self.intercept_polish_chars)
 		summary_box.bind("<KeyRelease>", lambda e: (self.apply_live_formatting(e), self.debounce_spell_check(summary_box)))
-		summary_box.bind("<Button-1>", lambda e: self.show_spell_menu(e, summary_box))
+		summary_box.bind("<Button-3>", lambda e: self.show_spell_menu(e, summary_box))
 		self.check_spelling(summary_box)
 
 		def save_rp_config() -> None:
@@ -1950,25 +1950,24 @@ class ChatUI:
 	def show_spell_menu(self, event: tk.Event, widget: tk.Text) -> str:
 		# Convert click position to text index
 		idx = widget.index(f"@{event.x},{event.y}")
-		
+
 		# Check if the click is on a misspelled word
 		tags = widget.tag_names(idx)
 		if "misspelled" not in tags:
 			return "continue"
 
-		# If it's Button-1, we want to show the menu but NOT interfere with selection if the user is dragging
-		# However, simple click is usually what triggers it.
-		
+		# Right-click should open the spell menu without affecting text selection.
+
 		# Find word boundaries
 		word_start = widget.index(f"{idx} wordstart")
 		word_end = widget.index(f"{idx} wordend")
 		word = widget.get(word_start, word_end).strip()
-		
+
 		if not word:
 			return "continue"
 
 		suggestions = self.spell_checker.suggestions(word)
-		
+
 		# For sentence start capitalization errors that are otherwise correct
 		if word[0].islower() and self.spell_checker.is_correct(word):
 			capitalized = word[0].upper() + word[1:]
@@ -1976,13 +1975,13 @@ class ChatUI:
 				suggestions = [capitalized] + suggestions
 
 		menu = tk.Menu(self.root, tearoff=0, bg=self.theme.bg_panel, fg=self.theme.fg_accent, bd=0)
-		
+
 		if suggestions:
 			for sug in suggestions[:5]: # Limit to top 5 suggestions
 				menu.add_command(label=sug, command=lambda s=sug, ws=word_start, we=word_end: self.replace_word(widget, ws, we, s))
 		else:
 			menu.add_command(label="(No suggestions)", state=tk.DISABLED)
-			
+
 		menu.add_separator()
 		menu.add_command(label="Add to dictionary", command=lambda w=word: self.add_to_dict(w, widget))
 
@@ -2116,10 +2115,24 @@ class ChatUI:
 		self.text_display.config(state=tk.NORMAL)
 
 		if role == "user" and self.user_avatar_tk:
+			# Ensure previous content ends with a newline so avatar sits on its own line
+			try:
+				last_char = self.text_display.get("end-2c", "end-1c")
+			except tk.TclError:
+				last_char = "\n"
+			if last_char != "\n":
+				self.text_display.insert(tk.END, "\n")
 			self.text_display.insert(tk.END, " ", role)
 			self.text_display.image_create(tk.END, image=self.user_avatar_tk)
 			self.text_display.insert(tk.END, "\n", role)
 		elif role == "ai" and self.ai_avatar_tk:
+			# Ensure previous content ends with a newline so avatar sits on its own line
+			try:
+				last_char = self.text_display.get("end-2c", "end-1c")
+			except tk.TclError:
+				last_char = "\n"
+			if last_char != "\n":
+				self.text_display.insert(tk.END, "\n")
 			self.text_display.image_create(tk.END, image=self.ai_avatar_tk)
 			self.text_display.insert(tk.END, "\n", role)
 
@@ -2150,10 +2163,24 @@ class ChatUI:
 
 			role = msg["role"]
 			if role == "user" and self.user_avatar_tk:
+				# Ensure previous content ends with a newline so avatar sits on its own line
+				try:
+					last_char = self.text_display.get("end-2c", "end-1c")
+				except tk.TclError:
+					last_char = "\n"
+				if last_char != "\n":
+					self.text_display.insert(tk.END, "\n")
 				self.text_display.insert(tk.END, " ", role)
 				self.text_display.image_create(tk.END, image=self.user_avatar_tk)
 				self.text_display.insert(tk.END, "\n", role)
 			elif role == "ai" and self.ai_avatar_tk:
+				# Ensure previous content ends with a newline so avatar sits on its own line
+				try:
+					last_char = self.text_display.get("end-2c", "end-1c")
+				except tk.TclError:
+					last_char = "\n"
+				if last_char != "\n":
+					self.text_display.insert(tk.END, "\n")
 				self.text_display.image_create(tk.END, image=self.ai_avatar_tk)
 				self.text_display.insert(tk.END, "\n", role)
 
