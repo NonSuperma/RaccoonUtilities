@@ -539,15 +539,16 @@ class GeminiManager:
 			try:
 				messages = history[start_idx:end_idx]
 				text_to_compress = "\n".join([f"{m['role']}: {m['content']}" for m in messages])
-				prompt = (f"Zaktualizuj podsumowanie o nowe wydarzenia i stan. Użyj gęstego, telegraficznego skrótu."
-				          f" Usuń prozę i dialogi. Skup się na faktach dających kontekst w historii."
-				          f" Użyj bezpośredniej, sprośnej (ale nie wulgarnej) terminologii przy opisie ciała."
-				          f" Użyj następującego formatu:\n"
-				          f" (historia: \n"
-				          f"stan emocjonalny: \n"
-				          f"stan ciała: )\n"
-				          f"Bieżące podsumowanie: {session.get('summary', '')}\n\n"
-				          f"Nowe zdarzenia: {text_to_compress}")
+				prompt = (f"Update the summary with new events and state. Use a dense, telegraphic style."
+				          f" Remove prose and dialogues. Focus on facts that provide context to the story."
+				          f" Use direct, explicit (but not vulgar) terminology when describing the body."
+				          f" Use the following format:\n"
+				          f" (history: \n"
+				          f"emotional state: \n"
+				          f"physical state: )\n"
+				          f"Current summary: {session.get('summary', '')}\n\n"
+				          f"New events: {text_to_compress}")
+
 
 				response = self.client.models.generate_content(
 					model='gemini-3.6-flash',
@@ -728,6 +729,8 @@ class ChatUI:
 		self.sidebar_visible = True
 		self.current_edit_box = None
 		self.settings_popup = None
+		# Job ID for delayed hiding of image panel buttons
+		self._image_hide_job = None
 
 		self.polish_map = {
 			'¹': 'ą', 'æ': 'ć', 'ê': 'ę', '³': 'ł', 'ñ': 'ń', 'œ': 'ś', 'Ÿ': 'ź', '\x9f': 'ź', '¿': 'ż',
@@ -946,12 +949,16 @@ class ChatUI:
 	def _build_image_panel(self) -> None:
 		self.image_panel = tk.Frame(self.content_panes, bg=self.theme.bg_panel, width=250)
 
+		# Image canvas is always visible; control buttons appear on hover
+		self.image_canvas = tk.Canvas(self.image_panel, bg=self.theme.bg_panel, bd=0, highlightthickness=0)
+		self.image_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+		self.image_canvas.bind("<Configure>", self.resize_image)
+
+		# Buttons are created but hidden by default; they will be shown when hovering the panel
 		self.avatar_btn = tk.Button(self.image_panel, text="Pick Avatars", bg=self.theme.bg_input,
 		                            fg=self.theme.fg_accent, bd=0, command=self.pick_avatars)
-		self.avatar_btn.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
 
 		self.img_btn_frame = tk.Frame(self.image_panel, bg=self.theme.bg_panel)
-		self.img_btn_frame.pack(side=tk.TOP, fill=tk.X)
 
 		self.upload_btn = tk.Button(self.img_btn_frame, text="Upload Image", bg=self.theme.bg_input,
 		                            fg=self.theme.fg_accent, bd=0, command=self.upload_image)
@@ -961,9 +968,10 @@ class ChatUI:
 		                           fg=self.theme.fg_accent, bd=0, command=self.clear_image)
 		self.clear_btn.pack(side=tk.RIGHT, padx=(2, 5), pady=5)
 
-		self.image_canvas = tk.Canvas(self.image_panel, bg=self.theme.bg_panel, bd=0, highlightthickness=0)
-		self.image_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-		self.image_canvas.bind("<Configure>", self.resize_image)
+		# Initially hidden: do not pack avatar_btn or img_btn_frame. Bindings will show/hide them.
+		for w in (self.image_panel, self.image_canvas, self.avatar_btn, self.img_btn_frame, self.upload_btn, self.clear_btn):
+			w.bind("<Enter>", self._on_image_panel_enter)
+			w.bind("<Leave>", self._on_image_panel_leave)
 
 	def pick_avatars(self) -> None:
 		popup = tk.Toplevel(self.root)
@@ -1093,6 +1101,52 @@ class ChatUI:
 		self.current_photo = ImageTk.PhotoImage(resized_img)
 		self.image_canvas.delete("all")
 		self.image_canvas.create_image(canvas_w // 2, canvas_h // 2, anchor=tk.CENTER, image=self.current_photo)
+
+	def _show_image_buttons(self) -> None:
+		"""Show avatar and image upload buttons if they are not already displayed."""
+		try:
+			if not self.avatar_btn.winfo_ismapped():
+				# pack before the canvas so buttons appear above the image area
+				self.avatar_btn.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5, before=self.image_canvas)
+			if not self.img_btn_frame.winfo_ismapped():
+				self.img_btn_frame.pack(side=tk.TOP, fill=tk.X, before=self.image_canvas)
+		except Exception:
+			pass
+
+	def _hide_image_buttons(self) -> None:
+		"""Hide avatar and image upload buttons."""
+		try:
+			if self.avatar_btn.winfo_ismapped():
+				self.avatar_btn.pack_forget()
+			if self.img_btn_frame.winfo_ismapped():
+				self.img_btn_frame.pack_forget()
+		except Exception:
+			pass
+
+	def _on_image_panel_enter(self, event: Any) -> None:
+		if getattr(self, '_image_hide_job', None):
+			try:
+				self.root.after_cancel(self._image_hide_job)
+			except Exception:
+				pass
+			self._image_hide_job = None
+		self._show_image_buttons()
+
+	def _on_image_panel_leave(self, event: Any) -> None:
+		def _delayed_hide():
+			x_root = self.root.winfo_pointerx()
+			y_root = self.root.winfo_pointery()
+			widget = self.root.winfo_containing(x_root, y_root)
+			if widget and str(widget).startswith(str(self.image_panel)):
+				return
+			self._hide_image_buttons()
+
+		try:
+			if getattr(self, '_image_hide_job', None):
+				self.root.after_cancel(self._image_hide_job)
+		except Exception:
+			pass
+		self._image_hide_job = self.root.after(200, _delayed_hide)
 
 	def apply_theme(self) -> None:
 		self.root.configure(bg=self.theme.bg_main)
