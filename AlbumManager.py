@@ -18,6 +18,17 @@ mvb_clrln = '\r\033[2K'
 FFMPEG_PATH = get_bundled_file_path('ffmpeg.exe')
 FFPROBE_PATH = get_bundled_file_path('ffprobe.exe')
 
+_original_scale_to_even = scale_to_even
+
+def scale_to_even(path):
+	try:
+		p = Path(path)
+	except Exception:
+		return
+	if not p.exists():
+		return
+	return _original_scale_to_even(p)
+
 
 def ask_bitrate() -> int:
 	while True:
@@ -78,6 +89,41 @@ def ask_album_name(folder_name: str) -> str:
 	return album_name
 
 
+def extract_embedded_cover(track_path: Path, temp_folder_path: Path) -> Path:
+	cover_path = temp_folder_path / 'cover_extracted.png'
+
+	cmd = [
+		FFMPEG_PATH, '-nostdin',
+		'-y',
+		'-v', 'error',
+		'-i', str(track_path),
+		'-map', '0:v:0',
+		'-frames:v', '1',
+		'-update', '1',
+		str(cover_path)
+	]
+
+	subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+	if not cover_path.exists():
+		raise ValueError(f'Embedded cover extraction did not create "{cover_path}"')
+
+	scale_to_even(cover_path)
+	return cover_path
+
+
+def get_and_scale_cover():
+	"""Prompt for a cover image, ensure it exists, scale it to even dimensions and return its Path."""
+	try:
+		cover_path = win_file_path('Cover', 'image')
+	except MissingInputError:
+		ask_exit(f'{Fore.LIGHTRED_EX}No cover selected{Fore.RESET}', timeout=10)
+	if cover_path is None or not cover_path.exists():
+		ask_exit(f'{Fore.RED}Cover file "{cover_path}" does not exist{Fore.RESET}', timeout=10)
+	scale_to_even(cover_path)
+	return cover_path
+
+
 def main():
 	init(autoreset=True)
 
@@ -133,24 +179,16 @@ def main():
 					cover_extracted = False
 					if userChoice == 'y':
 						cover_extracted = True
-						cover_filename = 'cover_extracted.png'
-						cover_path = Path.joinpath(temp_folder_path, cover_filename)
-
-						cmd = [
-							FFMPEG_PATH, '-nostdin',
-							'-y',
-							'-v', 'error',
-							'-i', str(track_paths[0]),
-							'-map', '0:v:0',
-							'-frames:v', '1',
-							'-update', '1',
-							str(cover_path)
-						]
 						try:
-							subprocess.run(cmd, check=True)
+							cover_path = extract_embedded_cover(track_paths[0], temp_folder_path)
 						except subprocess.CalledProcessError as e:
 							print(f"{Fore.RED}Error running ffmpeg:{Style.RESET_ALL}\n{e.stderr}")
-							print(f'Choose cover manually')
+							print('Choose cover manually')
+							cover_path = win_file_path('Cover', 'image')
+							scale_to_even(cover_path)
+						except ValueError as e:
+							print(f"{Fore.RED}{e}{Style.RESET_ALL}")
+							print('Choose cover manually')
 							cover_path = win_file_path('Cover', 'image')
 							scale_to_even(cover_path)
 					else:
@@ -265,25 +303,16 @@ def main():
 					cover_extracted = False
 					if userChoice == 'y':
 						cover_extracted = True
-						cover_filename = 'cover_extracted.png'
-						cover_path = Path.joinpath(temp_folder_path, cover_filename)
-
-						cmd = [
-							FFMPEG_PATH, '-nostdin',
-							'-y',
-							'-v', 'error',
-							'-i', str(track_paths[0]),
-							'-map', '0:v:0',
-							'-frames:v', '1',
-							'-update', '1',
-							str(cover_path)
-						]
-						scale_to_even(cover_path)
 						try:
-							subprocess.run(cmd, check=True)
+							cover_path = extract_embedded_cover(track_paths[0], temp_folder_path)
 						except subprocess.CalledProcessError as e:
 							print(f"{Fore.RED}Error running ffmpeg:{Style.RESET_ALL}\n{e.stderr}")
-							print(f'Choose cover manually')
+							print('Choose cover manually')
+							cover_path = win_file_path('Cover', 'image')
+							scale_to_even(cover_path)
+						except ValueError as e:
+							print(f"{Fore.RED}{e}{Style.RESET_ALL}")
+							print('Choose cover manually')
 							cover_path = win_file_path('Cover', 'image')
 							scale_to_even(cover_path)
 					else:
