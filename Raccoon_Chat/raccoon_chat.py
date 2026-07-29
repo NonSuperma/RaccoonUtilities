@@ -733,6 +733,8 @@ class ChatUI:
 		self._image_hide_job = None
 		# For hover status text restore
 		self._stats_label_prev_text = ""
+		# For temporarily hiding stats label text (fg) while tooltip is visible
+		self._stats_label_prev_fg = None
 
 		self.polish_map = {
 			'¹': 'ą', 'æ': 'ć', 'ê': 'ę', '³': 'ł', 'ñ': 'ń', 'œ': 'ś', 'Ÿ': 'ź', '\x9f': 'ź', '¿': 'ż',
@@ -1172,10 +1174,17 @@ class ChatUI:
 			pass
 
 	def _show_toggle_tooltip(self) -> None:
-		"""Show a small tooltip left of the toggle button without touching stats_label."""
+		"""Show a small tooltip left of the toggle button and hide stats_label visually."""
 		if not getattr(self, '_toggle_tooltip', None):
 			self._toggle_tooltip = tk.Label(self.top_bar, text="Toggle image panel", bg=self.theme.bg_panel,
 				fg=self.theme.fg_muted, font=(self.font_family, 9), bd=0)
+		# Hide stats_label visually by setting its fg to bg_panel (preserve previous fg)
+		try:
+			if self._stats_label_prev_fg is None:
+				self._stats_label_prev_fg = self.stats_label.cget('fg')
+			self.stats_label.configure(fg=self.theme.bg_panel)
+		except Exception:
+			pass
 		# place after a short delay so geometry is resolved
 		def _place():
 			try:
@@ -1199,6 +1208,13 @@ class ChatUI:
 		try:
 			if getattr(self, '_toggle_tooltip', None) and self._toggle_tooltip.winfo_exists():
 				self._toggle_tooltip.place_forget()
+		except Exception:
+			pass
+		# Restore stats_label fg if previously hidden
+		try:
+			if getattr(self, '_stats_label_prev_fg', None) is not None:
+				self.stats_label.configure(fg=self._stats_label_prev_fg)
+				self._stats_label_prev_fg = None
 		except Exception:
 			pass
 
