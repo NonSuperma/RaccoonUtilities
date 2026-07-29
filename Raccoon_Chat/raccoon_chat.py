@@ -733,8 +733,6 @@ class ChatUI:
 		self._image_hide_job = None
 		# For hover status text restore
 		self._stats_label_prev_text = ""
-		# For temporarily hiding stats label text (fg) while tooltip is visible
-		self._stats_label_prev_fg = None
 
 		self.polish_map = {
 			'¹': 'ą', 'æ': 'ć', 'ê': 'ę', '³': 'ł', 'ñ': 'ń', 'œ': 'ś', 'Ÿ': 'ź', '\x9f': 'ź', '¿': 'ż',
@@ -1174,17 +1172,19 @@ class ChatUI:
 			pass
 
 	def _show_toggle_tooltip(self) -> None:
-		"""Show a small tooltip left of the toggle button and hide stats_label visually."""
+		"""Show a small tooltip left of the toggle button and shift stats_label to avoid overlap."""
 		if not getattr(self, '_toggle_tooltip', None):
 			self._toggle_tooltip = tk.Label(self.top_bar, text="Toggle image panel", bg=self.theme.bg_panel,
 				fg=self.theme.fg_muted, font=(self.font_family, 9), bd=0)
-		# Hide stats_label visually by setting its fg to bg_panel (preserve previous fg)
+		# Save original stats_label padx so we can move it while tooltip is visible
 		try:
-			if self._stats_label_prev_fg is None:
-				self._stats_label_prev_fg = self.stats_label.cget('fg')
-			self.stats_label.configure(fg=self.theme.bg_panel)
+			if getattr(self, '_stats_label_prev_pad', None) is None:
+				pi = self.stats_label.pack_info()
+				padx_val = pi.get('padx', 10)
+				self._stats_label_prev_pad = int(padx_val)
 		except Exception:
-			pass
+			self._stats_label_prev_pad = 10
+
 		# place after a short delay so geometry is resolved
 		def _place():
 			try:
@@ -1195,6 +1195,12 @@ class ChatUI:
 				th = self._toggle_tooltip.winfo_reqheight()
 				x = bx - tw - 6
 				y = by + (self.toggle_img_panel_rect.winfo_height() - th) // 2
+				# shift stats_label right (increase its right padding) to make room for tooltip
+				try:
+					new_pad = (self._stats_label_prev_pad or 10) + tw + 8
+					self.stats_label.pack_configure(padx=new_pad)
+				except Exception:
+					pass
 				self._toggle_tooltip.place(x=x, y=y)
 			except Exception:
 				# fallback: pack to the right (will not overlap)
@@ -1210,11 +1216,11 @@ class ChatUI:
 				self._toggle_tooltip.place_forget()
 		except Exception:
 			pass
-		# Restore stats_label fg if previously hidden
+		# Restore stats_label padx if it was changed
 		try:
-			if getattr(self, '_stats_label_prev_fg', None) is not None:
-				self.stats_label.configure(fg=self._stats_label_prev_fg)
-				self._stats_label_prev_fg = None
+			if getattr(self, '_stats_label_prev_pad', None) is not None:
+				self.stats_label.pack_configure(padx=self._stats_label_prev_pad)
+				self._stats_label_prev_pad = None
 		except Exception:
 			pass
 
