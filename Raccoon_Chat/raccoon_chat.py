@@ -869,7 +869,6 @@ class ChatUI:
 		self.toggle_img_panel_rect.configure(width=2, height=1)
 		self.toggle_img_panel_rect.bind("<Enter>", self._on_toggle_enter)
 		self.toggle_img_panel_rect.bind("<Leave>", self._on_toggle_leave)
-		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.toggle_img_panel_rect.configure(cursor="hand2"))
 
 		self.stats_label = tk.Label(self.top_bar, text="", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
 		                            font=(self.font_family, 9))
@@ -1157,17 +1156,49 @@ class ChatUI:
 		self._image_hide_job = self.root.after(200, _delayed_hide)
 
 	def _on_toggle_enter(self, event: Any) -> None:
-		"""Show a persistent hover text for the toggle and save previous stats label text."""
+		"""Show tooltip and set hand cursor on enter."""
 		try:
-			self._stats_label_prev_text = self.stats_label.cget('text')
+			self.toggle_img_panel_rect.configure(cursor="hand2")
+			self._show_toggle_tooltip()
 		except Exception:
-			self._stats_label_prev_text = ""
-		self.stats_label.configure(text="Toggle image panel")
+			pass
 
 	def _on_toggle_leave(self, event: Any) -> None:
-		"""Restore previous stats label text when not hovering the toggle."""
+		"""Hide tooltip and reset cursor on leave."""
 		try:
-			self.stats_label.configure(text=self._stats_label_prev_text)
+			self.toggle_img_panel_rect.configure(cursor="")
+			self._hide_toggle_tooltip()
+		except Exception:
+			pass
+
+	def _show_toggle_tooltip(self) -> None:
+		"""Show a small tooltip left of the toggle button without touching stats_label."""
+		if not getattr(self, '_toggle_tooltip', None):
+			self._toggle_tooltip = tk.Label(self.top_bar, text="Toggle image panel", bg=self.theme.bg_panel,
+				fg=self.theme.fg_muted, font=(self.font_family, 9), bd=0)
+		# place after a short delay so geometry is resolved
+		def _place():
+			try:
+				bx = self.toggle_img_panel_rect.winfo_x()
+				by = self.toggle_img_panel_rect.winfo_y()
+				bw = self.toggle_img_panel_rect.winfo_width()
+				tw = self._toggle_tooltip.winfo_reqwidth()
+				th = self._toggle_tooltip.winfo_reqheight()
+				x = bx - tw - 6
+				y = by + (self.toggle_img_panel_rect.winfo_height() - th) // 2
+				self._toggle_tooltip.place(x=x, y=y)
+			except Exception:
+				# fallback: pack to the right (will not overlap)
+				try:
+					self._toggle_tooltip.pack(side=tk.RIGHT, padx=(0,6), pady=6)
+				except Exception:
+					pass
+		self.top_bar.after(10, _place)
+
+	def _hide_toggle_tooltip(self) -> None:
+		try:
+			if getattr(self, '_toggle_tooltip', None) and self._toggle_tooltip.winfo_exists():
+				self._toggle_tooltip.place_forget()
 		except Exception:
 			pass
 
@@ -1222,6 +1253,9 @@ class ChatUI:
 			self.text_display.tag_configure("ai_loading", foreground=self.theme.fg_accent, spacing3=4)
 			self.text_display.tag_configure("green", foreground=self.theme.fg_green)
 			self.text_display.tag_configure("grey", foreground=self.theme.fg_grey)
+		# Apply theme to toggle tooltip if it exists
+		if getattr(self, '_toggle_tooltip', None) and self._toggle_tooltip.winfo_exists():
+			self._toggle_tooltip.configure(bg=self.theme.bg_panel, fg=self.theme.fg_muted)
 
 	def apply_fonts(self) -> None:
 		self.apply_theme()
