@@ -863,6 +863,15 @@ class ChatUI:
 		self.stats_label = tk.Label(self.top_bar, text="", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
 		                            font=(self.font_family, 9))
 		self.stats_label.pack(side=tk.RIGHT, padx=10)
+		# Small color-distinct rectangle toggle to the right of cost overview
+		self.toggle_img_panel_rect = tk.Frame(self.top_bar, bg=self.theme.fg_accent, width=16, height=16, bd=0, relief=tk.FLAT)
+		self.toggle_img_panel_rect.pack_propagate(False)
+		self.toggle_img_panel_rect.pack(side=tk.RIGHT, padx=(0,8), pady=7)
+		self.toggle_img_panel_rect.bind("<Button-1>", lambda e: self.toggle_image_panel())
+		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.toggle_img_panel_rect.configure(cursor="hand2"))
+		# Accessibility: tooltip text on hover - show statustip in stats_label when hovering
+		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.stats_label.configure(text="Toggle image panel"))
+		self.toggle_img_panel_rect.bind("<Leave>", lambda e: self.stats_label.configure(text=""))
 
 	def _build_sidebar(self) -> None:
 		self.sidebar = tk.Frame(self.content_panes, bg=self.theme.bg_panel, width=200)
@@ -884,9 +893,6 @@ class ChatUI:
 		                                 fg=self.theme.fg_accent, bd=0, command=self.delete_chat)
 		self.delete_chat_btn.pack(fill=tk.X, padx=5, pady=2)
 
-		self.toggle_img_panel_btn = tk.Button(self.btn_frame, text="Toggle Img Panel", bg=self.theme.bg_input,
-		                                      fg=self.theme.fg_accent, bd=0, command=self.toggle_image_panel)
-		self.toggle_img_panel_btn.pack(fill=tk.X, padx=5, pady=2)
 
 		self.settings_frame = tk.Frame(self.sidebar, bg=self.theme.bg_panel)
 		self.settings_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
@@ -1163,7 +1169,7 @@ class ChatUI:
 			(self.settings_frame, "bg_panel"),
 			(self.separator, "bg_separator"),
 			(self.new_chat_btn, "bg_input", "fg_accent"),
-			(self.toggle_img_panel_btn, "bg_input", "fg_accent"),
+			(self.toggle_img_panel_rect, "fg_accent"),
 			(self.rp_settings_btn, "bg_input", "fg_accent"),
 			(self.overview_btn, "bg_input", "fg_accent"),
 			(self.open_settings_btn, "bg_input", "fg_accent"),
