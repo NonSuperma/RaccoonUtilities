@@ -864,12 +864,13 @@ class ChatUI:
 		                            font=(self.font_family, 9))
 		self.stats_label.pack(side=tk.RIGHT, padx=10)
 		# Small color-distinct rectangle toggle to the right of cost overview
-		self.toggle_img_panel_rect = tk.Frame(self.top_bar, bg=self.theme.fg_accent, width=16, height=16, bd=0, relief=tk.FLAT)
-		self.toggle_img_panel_rect.pack_propagate(False)
-		self.toggle_img_panel_rect.pack(side=tk.RIGHT, padx=(0,8), pady=7)
-		self.toggle_img_panel_rect.bind("<Button-1>", lambda e: self.toggle_image_panel())
+		# Use a Button placed at the top-right to avoid pack overlap issues and ensure clickability
+		self.toggle_img_panel_rect = tk.Button(self.top_bar, bg=self.theme.fg_accent, activebackground=self.theme.fg_accent,
+				bd=0, relief=tk.FLAT, command=self.toggle_image_panel, takefocus=False)
+		# Place with absolute positioning relative to top_bar to avoid interfering with stats_label
+		self.toggle_img_panel_rect.place(relx=1.0, x=-8, y=7, anchor=tk.NE, width=18, height=18)
 		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.toggle_img_panel_rect.configure(cursor="hand2"))
-		# Accessibility: tooltip text on hover - show statustip in stats_label when hovering
+		# Accessibility: show brief status text in stats_label when hovering
 		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.stats_label.configure(text="Toggle image panel"))
 		self.toggle_img_panel_rect.bind("<Leave>", lambda e: self.stats_label.configure(text=""))
 
