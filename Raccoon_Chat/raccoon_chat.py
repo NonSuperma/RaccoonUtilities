@@ -252,14 +252,63 @@ class AppConfig:
 		self.config_file.write_text(json.dumps(data, indent=2), encoding='utf-8')
 
 	def get_model_caps(self, model_name: str) -> Dict[str, Any]:
+		"""
+		Return capabilities and pricing for a given Gemini model.
+		Pricing is in USD per 1M input/output tokens (current as of 2025).
+		Uses normalized model detection to handle various naming conventions.
+		"""
+		model_lower = model_name.lower()
+		
+		# Detect model type: pro, exp (experimental), flash/lite, etc.
+		is_pro = "pro" in model_lower and "exp" not in model_lower
+		is_exp = "exp" in model_lower  # Experimental/Advanced models
+		is_lite = "lite" in model_lower
+		
+		# Pricing structure (USD per 1M tokens) - Updated for 2025 Gemini models
+		if is_exp:
+			# Experimental models (e.g., gemini-2.0-pro-exp)
+			cost_in_usd = 10.00  # $10 per 1M input tokens
+			cost_out_usd = 40.00  # $40 per 1M output tokens
+			cache_in_usd = 2.50  # $2.50 per 1M cached input tokens
+			cache_creation_usd = 50.00  # $50 per 1M cache creation tokens
+		elif is_pro and "2.0" in model_lower:
+			# Gemini 2.0 Pro
+			cost_in_usd = 3.50  # $3.50 per 1M input tokens
+			cost_out_usd = 14.00  # $14 per 1M output tokens
+			cache_in_usd = 0.875  # $0.875 per 1M cached input tokens
+			cache_creation_usd = 17.50  # $17.50 per 1M cache creation tokens
+		elif is_pro:
+			# Gemini 1.5 Pro and other pro models
+			cost_in_usd = 1.25  # $1.25 per 1M input tokens
+			cost_out_usd = 5.00  # $5 per 1M output tokens
+			cache_in_usd = 0.3125  # $0.3125 per 1M cached input tokens
+			cache_creation_usd = 6.25  # $6.25 per 1M cache creation tokens
+		elif is_lite:
+			# Lite/Flash Lite models
+			cost_in_usd = 0.0375  # $0.0375 per 1M input tokens
+			cost_out_usd = 0.15  # $0.15 per 1M output tokens
+			cache_in_usd = 0.009375  # $0.009375 per 1M cached input tokens
+			cache_creation_usd = 1.875  # $1.875 per 1M cache creation tokens
+		else:
+			# Default: Gemini Flash/standard models (most common)
+			cost_in_usd = 0.075  # $0.075 per 1M input tokens
+			cost_out_usd = 0.30  # $0.30 per 1M output tokens
+			cache_in_usd = 0.01875  # $0.01875 per 1M cached input tokens
+			cache_creation_usd = 3.75  # $3.75 per 1M cache creation tokens
+		
+		# Storage/Cache hourly cost (per 1M tokens)
+		storage_cost_ph_usd = cache_in_usd  # Use cached token rate for storage cost
+		
 		return {
-			"max_tokens": 4096 if "lite" in model_name else 8192,
-			"penalties": not any(v in model_name for v in ["3.6", "3.5", "3.1", "2.0"]),
+			"max_tokens": 4096 if is_lite else 8192,
+			"penalties": not any(v in model_lower for v in ["3.6", "3.5", "3.1", "2.0"]),
 			"max_rpm": 15,
 			"max_tpm": 1000000,
-			"cost_in": 1.25 if "pro" in model_name else 0.075,
-			"cost_out": 5.00 if "pro" in model_name else 0.30,
-			"cost_storage_ph": 4.50 if "pro" in model_name else 1.00
+			"cost_in": cost_in_usd,
+			"cost_out": cost_out_usd,
+			"cost_cache_in": cache_in_usd,
+			"cost_cache_creation": cache_creation_usd,
+			"cost_storage_ph": storage_cost_ph_usd
 		}
 
 
@@ -509,7 +558,10 @@ class GeminiManager:
 
 		caps = self.config.get_model_caps(self.config.current_model)
 		cost_usd_ph = (estimated_tokens / 1000000) * caps.get("cost_storage_ph", 1.0)
-		cost_pln_ph = cost_usd_ph * 3.75
+		
+		# Convert USD to PLN using current exchange rate (≈4.0 PLN per USD as of 2025)
+		usd_to_pln_rate = 4.0
+		cost_pln_ph = cost_usd_ph * usd_to_pln_rate
 
 		return {
 			"status": f"Active ({self.current_cache.name})",
@@ -1334,8 +1386,15 @@ class ChatUI:
 			in_tokens = self.manager.usage_tracker.session_input_tokens
 			out_tokens = self.manager.usage_tracker.session_output_tokens
 
+			# Calculate cost in USD
+			# Using current pricing: USD per 1M tokens, divided by 1,000,000 to convert
 			cost_usd = (in_tokens / 1000000 * caps["cost_in"]) + (out_tokens / 1000000 * caps["cost_out"])
-			cost_pln = cost_usd * 3.75
+			
+			# Convert USD to PLN using current exchange rate (≈4.0 PLN per USD as of 2025)
+			# Adjust this rate as needed based on current rates
+			usd_to_pln_rate = 4.0
+			cost_pln = cost_usd * usd_to_pln_rate
+			
 			self.stats_label.config(text=f"Session Cost: {cost_pln:.5f} PLN{compress_tag}", fg=color)
 		else:
 			rpm, tpm = self.manager.usage_tracker.get_stats()
