@@ -42,6 +42,8 @@ def scale_to_even(file_path: Path, remove_old=True, alternatively_uneven=False):
             self.dimensions = dimensions
 
     image_dimentions = get_media_dimentions(file_path)
+    if image_dimentions is None:
+        raise ValueError(f'Could not read image dimensions for "{file_path}"')
     new_dimentions = []
     flagged = False
     if alternatively_uneven:
