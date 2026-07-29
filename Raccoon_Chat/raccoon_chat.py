@@ -731,6 +731,8 @@ class ChatUI:
 		self.settings_popup = None
 		# Job ID for delayed hiding of image panel buttons
 		self._image_hide_job = None
+		# For hover status text restore
+		self._stats_label_prev_text = ""
 
 		self.polish_map = {
 			'¹': 'ą', 'æ': 'ć', 'ê': 'ę', '³': 'ł', 'ñ': 'ń', 'œ': 'ś', 'Ÿ': 'ź', '\x9f': 'ź', '¿': 'ż',
@@ -860,19 +862,18 @@ class ChatUI:
 	def _build_top_bar(self) -> None:
 		self.top_bar = tk.Frame(self.main_frame, bg=self.theme.bg_panel, height=30)
 		self.top_bar.pack(fill=tk.X, side=tk.TOP)
+		# Small color-distinct rectangle toggle to the right of cost overview
+		self.toggle_img_panel_rect = tk.Button(self.top_bar, bg=self.theme.bg_input, activebackground=self.theme.bg_input,
+				bd=0, relief=tk.FLAT, command=self.toggle_image_panel, takefocus=False)
+		self.toggle_img_panel_rect.pack(side=tk.RIGHT, padx=(0,8), pady=6)
+		self.toggle_img_panel_rect.configure(width=2, height=1)
+		self.toggle_img_panel_rect.bind("<Enter>", self._on_toggle_enter)
+		self.toggle_img_panel_rect.bind("<Leave>", self._on_toggle_leave)
+		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.toggle_img_panel_rect.configure(cursor="hand2"))
+
 		self.stats_label = tk.Label(self.top_bar, text="", bg=self.theme.bg_panel, fg=self.theme.fg_muted,
 		                            font=(self.font_family, 9))
 		self.stats_label.pack(side=tk.RIGHT, padx=10)
-		# Small color-distinct rectangle toggle to the right of cost overview
-		# Use a Button placed at the top-right to avoid pack overlap issues and ensure clickability
-		self.toggle_img_panel_rect = tk.Button(self.top_bar, bg=self.theme.fg_accent, activebackground=self.theme.fg_accent,
-				bd=0, relief=tk.FLAT, command=self.toggle_image_panel, takefocus=False)
-		# Place with absolute positioning relative to top_bar to avoid interfering with stats_label
-		self.toggle_img_panel_rect.place(relx=1.0, x=-8, y=7, anchor=tk.NE, width=18, height=18)
-		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.toggle_img_panel_rect.configure(cursor="hand2"))
-		# Accessibility: show brief status text in stats_label when hovering
-		self.toggle_img_panel_rect.bind("<Enter>", lambda e: self.stats_label.configure(text="Toggle image panel"))
-		self.toggle_img_panel_rect.bind("<Leave>", lambda e: self.stats_label.configure(text=""))
 
 	def _build_sidebar(self) -> None:
 		self.sidebar = tk.Frame(self.content_panes, bg=self.theme.bg_panel, width=200)
@@ -1155,6 +1156,21 @@ class ChatUI:
 			pass
 		self._image_hide_job = self.root.after(200, _delayed_hide)
 
+	def _on_toggle_enter(self, event: Any) -> None:
+		"""Show a persistent hover text for the toggle and save previous stats label text."""
+		try:
+			self._stats_label_prev_text = self.stats_label.cget('text')
+		except Exception:
+			self._stats_label_prev_text = ""
+		self.stats_label.configure(text="Toggle image panel")
+
+	def _on_toggle_leave(self, event: Any) -> None:
+		"""Restore previous stats label text when not hovering the toggle."""
+		try:
+			self.stats_label.configure(text=self._stats_label_prev_text)
+		except Exception:
+			pass
+
 	def apply_theme(self) -> None:
 		self.root.configure(bg=self.theme.bg_main)
 
@@ -1170,7 +1186,7 @@ class ChatUI:
 			(self.settings_frame, "bg_panel"),
 			(self.separator, "bg_separator"),
 			(self.new_chat_btn, "bg_input", "fg_accent"),
-			(self.toggle_img_panel_rect, "fg_accent"),
+			(self.toggle_img_panel_rect, "bg_input"),
 			(self.rp_settings_btn, "bg_input", "fg_accent"),
 			(self.overview_btn, "bg_input", "fg_accent"),
 			(self.open_settings_btn, "bg_input", "fg_accent"),
