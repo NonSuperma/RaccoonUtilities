@@ -32,12 +32,13 @@ FILETYPE_PRESETS: dict[str, Sequence[tuple[str, str]]] = {
         ("BMP files", "*.bmp"),
     ),
     "video": (
-        ("Video files", "*.mp4 *.avi *.mkv *.mov *.wmv"),
+        ("Video files", "*.mp4 *.avi *.mkv *.mov *.wmv *.webm"),
         ("MP4 files", "*.mp4"),
         ("AVI files", "*.avi"),
         ("MKV files", "*.mkv"),
         ("MOV files", "*.mov"),
         ("WMV files", "*.wmv"),
+        ("WEBM files", "*.webm"),
     )
 }
 
@@ -77,9 +78,11 @@ def _check_hresult(hr: int) -> None:
         raise ctypes.WinError(hr)
 
 
-def _resolve_filetypes(filetypes: FileTypeSpec) -> Sequence[tuple[str, str]] | None:
+def _resolve_filetypes(filetypes: FileTypeSpec) -> Sequence[tuple[str, str]]:
     if isinstance(filetypes, str):
         return FILETYPE_PRESETS.get(filetypes.lower(), (("All files", "*.*"),))
+    if filetypes is None:
+        return ()
     return filetypes
 
 
@@ -236,7 +239,7 @@ def win_file_path(
     message: str = "",
     filetypes: FileTypeSpec = None,
     initial_dir: Path | None = None,
-) -> Path:
+    )-> Path:
 
     root = _create_tk_root()
     kwargs = {
